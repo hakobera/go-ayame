@@ -2,6 +2,44 @@
 
 go-ayame は [WebRTC Signaling Server Ayame](https://github.com/OpenAyame/ayame) の Go 言語用のクライアントライブラリです。
 
+## 前提事項
+
+go-ayame を利用するには Go 1.13 以上が必要です。
+
+## 使い方
+
+```go
+import "github.com/hakobera/go-ayame/ayame"
+
+signalingURL := "wss://ayame-lite.shiguredo.jp/signaling"
+roomID := "your_room_id"
+
+// ayame.Connect の作成
+opts := ayame.DefaultOptions()
+con := ayame.NewConnection(signalingURL, roomID, opts, false, false)
+
+// PeerConnecition 接続時の処理
+con.OnConnect(func() {
+    fmt.Println("Connected")
+})
+
+// 動画、音声パケットデータ受信時の処理
+con.OnTrackPacket(func(track *webrtc.Track, packet *rtp.Packet) {
+    switch track.Kind() {
+    case webrtc.RTPCodecTypeAudio:
+        // Audio データを使って何かをする
+    case webrtc.RTPCodecTypeVideo:
+        // Video データを使って何かをする
+    }
+})
+
+// Ayame サーバーへ接続
+err := con.Connect()
+if err != nil {
+    log.Fatal("failed to connect Ayame", err)
+}
+```
+
 ## License
 
 ```
