@@ -30,7 +30,6 @@ func main() {
 
 	opts := ayame.DefaultOptions()
 	opts.SignalingKey = *signalingKey
-	opts.ClientID = "123"
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 
 	con.OnConnect(func() {
