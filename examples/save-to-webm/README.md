@@ -14,7 +14,7 @@ Ayame のオンラインサンプル [送信のみ(sendonly)](https://openayame.
 
 上記で入力した RoomID をコマンドラインパラメータとして指定します。
 
-```
+```console
 $ go run main.go -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id>
 ```
 
