@@ -56,11 +56,14 @@ type Connection struct {
 	isOffer       bool
 	isExistClient bool
 
+	dataChannels map[string]*webrtc.DataChannel
+
 	onOpenHandler        func(metadata *interface{})
 	onConnectHandler     func()
 	onDisconnectHandler  func(reason string, err error)
 	onTrackPacketHandler func(track *webrtc.Track, packet *rtp.Packet)
 	onByeHandler         func()
+	onDataHandler        func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage)
 
 	callbackMu sync.Mutex
 }
@@ -80,6 +83,10 @@ func (c *Connection) Disconnect() {
 	c.callbackMu.Lock()
 	defer c.callbackMu.Unlock()
 
+	for _, dc := range c.dataChannels {
+		c.closeDataChannel(dc)
+	}
+
 	c.closePeerConnection()
 	c.closeWebSocketConnection()
 	c.authzMetadata = nil
@@ -88,11 +95,51 @@ func (c *Connection) Disconnect() {
 	c.isOffer = false
 	c.isExistClient = false
 
+	c.dataChannels = map[string]*webrtc.DataChannel{}
+
 	c.onOpenHandler = func(metadata *interface{}) {}
 	c.onConnectHandler = func() {}
 	c.onDisconnectHandler = func(reason string, err error) {}
 	c.onTrackPacketHandler = func(track *webrtc.Track, packet *rtp.Packet) {}
 	c.onByeHandler = func() {}
+	c.onDataHandler = func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage) {}
+}
+
+// AddDataChannel は指定した label と options から新しい DataChannel 作成して、追加します。
+func (c *Connection) AddDataChannel(label string, options *webrtc.DataChannelInit) (*webrtc.DataChannel, error) {
+	if c.pc == nil {
+		return nil, fmt.Errorf("PeerConnection Does Not Ready")
+	}
+	if c.isOffer {
+		return nil, fmt.Errorf("PeerConnection Has Local Offer")
+	}
+	if _, ok := c.dataChannels[label]; ok {
+		return nil, fmt.Errorf("DataChannel Already Exists. label=%s", label)
+	}
+
+	dc, err := c.pc.CreateDataChannel(label, options)
+	if err != nil {
+		return nil, err
+	}
+
+	dc.OnOpen(func() {
+		c.trace("datachannel OnOpen")
+	})
+	dc.OnClose(func() {
+		c.trace("datachannel OnClose")
+		delete(c.dataChannels, label)
+	})
+	dc.OnError(func(err error) {
+		c.trace("datachannel OnError: %v", err)
+		delete(c.dataChannels, label)
+	})
+	dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+		c.trace("datachannel OnMessage")
+		c.onDataHandler(dc, &msg)
+	})
+
+	c.dataChannels[label] = dc
+	return dc, nil
 }
 
 // OnOpen は open イベント発生時のコールバック関数を設定します。
@@ -128,6 +175,13 @@ func (c *Connection) OnBye(f func()) {
 	c.callbackMu.Lock()
 	defer c.callbackMu.Unlock()
 	c.onByeHandler = f
+}
+
+// OnData は data イベント発生時のコールバック関数を設定します。
+func (c *Connection) OnData(f func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage)) {
+	c.callbackMu.Lock()
+	defer c.callbackMu.Unlock()
+	c.onDataHandler = f
 }
 
 func (c *Connection) trace(format string, v ...interface{}) {
@@ -322,6 +376,10 @@ func (c *Connection) createPeerConnection() error {
 		c.trace("signaling state changes: %s", signalingState.String())
 	})
 
+	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+		c.onDataChannel(dc)
+	})
+
 	if c.pc != nil {
 		c.pc = pc
 		c.onOpenHandler(c.authzMetadata)
@@ -404,9 +462,57 @@ func (c *Connection) addICECandidate(candidate webrtc.ICECandidateInit) {
 	}
 	err := c.pc.AddICECandidate(candidate)
 	if err != nil {
-		c.trace("invalid ice candidate, %v", candidate)
 		// ignore error
+		c.trace("invalid ice candidate, %v", candidate)
+		return
 	}
+}
+
+func (c *Connection) onDataChannel(dc *webrtc.DataChannel) {
+	label := dc.Label()
+	c.trace("on data channel, label='%s'", label)
+	if c.pc == nil {
+		return
+	}
+	if dc == nil {
+		return
+	}
+	if label == "" {
+		return
+	}
+
+	dc.OnOpen(func() {
+		c.trace("datachannel OnOpen")
+	})
+	dc.OnClose(func() {
+		c.trace("datachannel OnClose")
+	})
+	dc.OnError(func(err error) {
+		c.trace("datachannel OnError: %v", err)
+	})
+	dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+		c.trace("datachannel OnMessage")
+		c.onDataHandler(dc, &msg)
+	})
+
+	c.dataChannels[label] = dc
+}
+
+func (c *Connection) closeDataChannel(dc *webrtc.DataChannel) {
+	if dc.ReadyState() == webrtc.DataChannelStateClosed {
+		return
+	}
+	dc.OnClose(func() {})
+	go func() {
+		ticker := time.NewTicker(400 * time.Millisecond)
+		for range ticker.C {
+			if dc.ReadyState() == webrtc.DataChannelStateClosed {
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+	dc.Close()
 }
 
 func (c *Connection) closePeerConnection() {
@@ -423,15 +529,19 @@ func (c *Connection) closePeerConnection() {
 		ticker := time.NewTicker(400 * time.Millisecond)
 		for range ticker.C {
 			if c.pc == nil {
+				ticker.Stop()
 				return
 			}
 			if c.pc != nil && c.pc.SignalingState() == webrtc.SignalingStateClosed {
+				ticker.Stop()
 				c.pc = nil
 				return
 			}
 		}
 	}()
-	c.pc.Close()
+	if c.pc != nil {
+		c.pc.Close()
+	}
 }
 
 func (c *Connection) closeWebSocketConnection() {
