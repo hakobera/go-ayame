@@ -75,11 +75,14 @@ func NewConnection(signalingURL string, roomID string, options *ConnectionOption
 		isOffer:       false,
 		isExistClient: false,
 
+		dataChannels: map[string]*webrtc.DataChannel{},
+
 		onOpenHandler:        func(metadata *interface{}) {},
 		onConnectHandler:     func() {},
 		onDisconnectHandler:  func(reason string, err error) {},
 		onTrackPacketHandler: func(track *webrtc.Track, packet *rtp.Packet) {},
 		onByeHandler:         func() {},
+		onDataHandler:        func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage) {},
 	}
 
 	return c
