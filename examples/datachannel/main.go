@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -26,24 +27,31 @@ func main() {
 	opts.SignalingKey = *signalingKey
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	con.OnConnect(func() {
 		fmt.Println("Connected")
-		dc, err := con.AddDataChannel("go-ayame-example", nil)
+		dc, err := con.AddDataChannel("goAyameExample", nil)
 		if err != nil {
 			log.Printf("AddDataChannel error: %v", err)
 			return
 		}
 		go func() {
 			ticker := time.NewTicker(5 * time.Second)
-			for range ticker.C {
-				dc.SendText("Hello DataChannel")
+			for {
+				select {
+				case <-ticker.C:
+					dc.SendText("[push] Hello DataChannel")
+				case <-ctx.Done():
+					return
+				}
 			}
 		}()
 	})
 
 	con.OnData(func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage) {
 		if msg.IsString {
-			fmt.Printf("OnData: isString=true, data=%s\n", string(msg.Data))
+			fmt.Printf("OnData[%s]: data=%s\n", dc.Label(), (msg.Data))
 			dc.SendText("[echo] " + string(msg.Data))
 		}
 	})
@@ -55,6 +63,7 @@ func main() {
 
 	fmt.Println("Press Ctrl+C to stop process")
 	waitInterrupt()
+	cancel()
 	con.Disconnect()
 
 	log.Printf("Done")

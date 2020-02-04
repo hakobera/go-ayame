@@ -15,7 +15,7 @@ Ayame のオンラインサンプル [送信のみ(sendonly)](https://openayame.
 上記で入力した RoomID をコマンドラインパラメータとして指定します。
 
 ```console
-$ go run main.go -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id>
+go run main.go -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id>
 ```
 
 PeerConnection 接続が完了すると、コンソールに `Connected` と表示され、ブラウザからの送信された動画と音声データが実行したフォルダ内の `test.webm` という名前のファイルに保存されます。
