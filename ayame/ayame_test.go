@@ -16,6 +16,9 @@ func TestDefaultOptions(t *testing.T) {
 	if !opts.Audio.Enabled {
 		t.Errorf("Audio.Enabled should be true")
 	}
+	if opts.Audio.Bitrate != 48000 {
+		t.Errorf("Audio.Bitrate should be 480000")
+	}
 
 	if opts.Video.Direction != "recvonly" {
 		t.Errorf("Video.Direction should be \"recvonly\"")
@@ -25,6 +28,9 @@ func TestDefaultOptions(t *testing.T) {
 	}
 	if opts.Video.Codec != "VP8" {
 		t.Errorf("Video.Codec should be \"VP8\"")
+	}
+	if opts.Video.Bitrate != 90000 {
+		t.Errorf("Video.Bitrate should be 90000")
 	}
 
 	iceServer := opts.ICEServers[0]

@@ -22,14 +22,17 @@ type ConnectionOptions struct {
 
 // ConnectionVideoOption は Video に関するオプションです。
 type ConnectionVideoOption struct {
-	// コーデックの設定。現在、'VP8' のみサポート
-	Codec string
-
 	// 送受信方向。現在、'recvonly' のみサポート
 	Direction string
 
 	// 有効かどうかのフラグ
 	Enabled bool
+
+	// コーデックの設定。'VP8', 'VP9', 'H264' のみサポート
+	Codec string
+
+	// 動画のビットレート
+	Bitrate uint32
 }
 
 // ConnectionAudioOption は Audio に関数するオプションです。
@@ -39,4 +42,7 @@ type ConnectionAudioOption struct {
 
 	// 有効かどうかのフラグ
 	Enabled bool
+
+	// 音声のビットレート。コーデックは Opus で固定
+	Bitrate uint32
 }
