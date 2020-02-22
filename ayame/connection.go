@@ -275,10 +275,6 @@ func (c *Connection) sendSdp(sessionDescription *webrtc.SessionDescription) {
 }
 
 func (c *Connection) createPeerConnection() error {
-	if c.Options.Video.Codec != "VP8" {
-		return fmt.Errorf("Unsupported Video Codec: %s", c.Options.Video.Codec)
-	}
-
 	// createPeerConnection() は以下のソース内の createWebRTCConn() を参考に記述しました。
 	// 引用した部分については、コメントもそのまま持ってきています。
 	// https://github.com/pion/example-webrtc-applications/blob/master/save-to-webm/main.go
@@ -287,9 +283,24 @@ func (c *Connection) createPeerConnection() error {
 	m := webrtc.MediaEngine{}
 
 	// Setup the codecs you want to use.
-	// Only support VP8 and OPUS, this makes our WebM muxer code simpler
-	m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, 90000))
-	m.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
+	if c.Options.Audio.Enabled {
+		m.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, c.Options.Audio.Bitrate))
+	}
+
+	if c.Options.Video.Enabled {
+		switch c.Options.Video.Codec {
+		case "VP9":
+			m.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, c.Options.Video.Bitrate))
+		case "H264":
+			m.RegisterCodec(webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, c.Options.Video.Bitrate))
+		case "ALL":
+			m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, c.Options.Video.Bitrate))
+			m.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, c.Options.Video.Bitrate))
+			m.RegisterCodec(webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, c.Options.Video.Bitrate))
+		default:
+			m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, c.Options.Video.Bitrate))
+		}
+	}
 
 	// Create the API object with the MediaEngine
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(m))

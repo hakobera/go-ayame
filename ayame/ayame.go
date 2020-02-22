@@ -30,11 +30,13 @@ func DefaultOptions() *ConnectionOptions {
 		Audio: ConnectionAudioOption{
 			Direction: "recvonly",
 			Enabled:   true,
+			Bitrate:   48000,
 		},
 		Video: ConnectionVideoOption{
 			Direction: "recvonly",
 			Enabled:   true,
 			Codec:     "VP8",
+			Bitrate:   90000,
 		},
 		ICEServers: []webrtc.ICEServer{
 			webrtc.ICEServer{
