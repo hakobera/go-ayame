@@ -31,7 +31,7 @@ type ConnectionVideoOption struct {
 	// コーデックの設定。'VP8', 'VP9', 'H264' のみサポート
 	Codec string
 
-	// 動画のビットレート
+	// 動画のビットレート（単位は bps）
 	Bitrate uint32
 }
 
@@ -43,6 +43,8 @@ type ConnectionAudioOption struct {
 	// 有効かどうかのフラグ
 	Enabled bool
 
-	// 音声のビットレート。コーデックは Opus で固定
+	// 音声のビットレート。（単位は bps)
 	Bitrate uint32
+
+	// 音声のコーデックは Opus で固定
 }
