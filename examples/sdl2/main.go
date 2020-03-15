@@ -3,16 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"image"
 	"log"
 
 	"github.com/hakobera/go-ayame/ayame"
-	"github.com/hakobera/libvpx-go/vpx"
 	"github.com/pion/rtp"
-	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
-	"github.com/pion/webrtc/v2/pkg/media/samplebuilder"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -24,7 +20,7 @@ func main() {
 	verbose := flag.Bool("verbose", false, "enable verbose log")
 
 	flag.Parse()
-	log.Printf("args: url=%s, roomID=%s, signalingKey=%s", *signalingURL, *roomID, *signalingKey)
+	log.Printf("args: url=%s, roomID=%s, signalingKey=%s, coded=%s", *signalingURL, *roomID, *signalingKey, *codec)
 
 	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
 		log.Printf("Failed to initialize SDL")
@@ -61,16 +57,19 @@ func main() {
 	videoData := make(chan *media.Sample, 60)
 	defer close(videoData)
 
-	videoBuilder := samplebuilder.New(10, &codecs.VP8Packet{})
+	frameData := make(chan VpxFrame)
+	defer close(frameData)
 
-	frameData := make(chan frame)
-	decoder, err := newVideoDecoder(*codec, videoData)
+	decoder, err := NewDecoder(*codec)
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
 	}
+	defer decoder.Close()
 
-	go decoder.Process(frameData)
+	vpxSampleBuilder := decoder.NewSampleBuilder()
+
+	go decoder.Process(videoData, frameData)
 
 	opts := ayame.DefaultOptions()
 	opts.SignalingKey = *signalingKey
@@ -85,10 +84,10 @@ func main() {
 	con.OnTrackPacket(func(track *webrtc.Track, packet *rtp.Packet) {
 		switch track.Kind() {
 		case webrtc.RTPCodecTypeVideo:
-			videoBuilder.Push(packet)
+			vpxSampleBuilder.Push(packet)
 
 			for {
-				sample := videoBuilder.Pop()
+				sample := vpxSampleBuilder.Pop()
 				if sample == nil {
 					return
 				}
@@ -132,75 +131,6 @@ func main() {
 				running = false
 				break
 			}
-		}
-	}
-}
-
-type frame struct {
-	*image.RGBA
-	IsKeyframe bool
-	Width      int
-	Height     int
-}
-
-type videoDecoder struct {
-	src   <-chan *media.Sample
-	ctx   *vpx.CodecCtx
-	iface *vpx.CodecIface
-}
-
-func newVideoDecoder(codec string, src chan *media.Sample) (*videoDecoder, error) {
-	dec := &videoDecoder{
-		src: src,
-		ctx: vpx.NewCodecCtx(),
-	}
-	switch codec {
-	case "VP8":
-		dec.iface = vpx.DecoderIfaceVP8()
-	case "VP9":
-		dec.iface = vpx.DecoderIfaceVP9()
-	default:
-		return nil, fmt.Errorf("Unsupported coded: %s", codec)
-	}
-	err := vpx.Error(vpx.CodecDecInitVer(dec.ctx, dec.iface, nil, 0, vpx.DecoderABIVersion))
-	if err != nil {
-		return nil, err
-	}
-	return dec, nil
-}
-
-func (v *videoDecoder) Process(out chan<- frame) {
-	defer close(out)
-	for pkt := range v.src {
-		dataSize := uint32(len(pkt.Data))
-		err := vpx.Error(vpx.CodecDecode(v.ctx, string(pkt.Data), dataSize, nil, 0))
-		if err != nil {
-			log.Println("[WARN]", err)
-			continue
-		}
-		isKeyframe := (pkt.Data[0]&0x1 == 0)
-		width := 0
-		height := 0
-		if isKeyframe {
-			raw := uint(pkt.Data[6]) | uint(pkt.Data[7])<<8 | uint(pkt.Data[8])<<16 | uint(pkt.Data[9])<<24
-			width = int(raw & 0x3FFF)
-			height = int((raw >> 16) & 0x3FFF)
-		}
-		if width != 0 {
-			log.Printf("width=%d, height=%d\n", width, height)
-		}
-
-		var iter *vpx.CodecIter
-		img := vpx.CodecGetFrame(v.ctx, &iter)
-		for img != nil {
-			img.Deref()
-			out <- frame{
-				RGBA:       img.ImageRGBA(),
-				IsKeyframe: (pkt.Data[0]&0x1 == 0),
-				Width:      width,
-				Height:     height,
-			}
-			img = vpx.CodecGetFrame(v.ctx, &iter)
 		}
 	}
 }
