@@ -73,6 +73,7 @@ func main() {
 
 	opts := ayame.DefaultOptions()
 	opts.SignalingKey = *signalingKey
+	opts.Video.Codec = *codec
 	opts.Audio.Enabled = false
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 	defer con.Disconnect()

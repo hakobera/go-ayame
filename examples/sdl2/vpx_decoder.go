@@ -140,16 +140,6 @@ func (d *VpxDecoder) Process(src <-chan *media.Sample, out chan<- VpxFrame) {
 	}
 
 	for pkt := range src {
-		isKeyframe := (pkt.Data[0]&0x1 == 0)
-		width := 0
-		height := 0
-		if isKeyframe {
-			raw := uint(pkt.Data[6]) | uint(pkt.Data[7])<<8 | uint(pkt.Data[8])<<16 | uint(pkt.Data[9])<<24
-			width = int(raw & 0x3FFF)
-			height = int((raw >> 16) & 0x3FFF)
-			log.Printf("isKeyframe, width=%d, height=%d\n", width, height)
-		}
-
 		err := d.decode(pkt)
 		if err != nil {
 			log.Println("[WARN]", err)
@@ -161,7 +151,7 @@ func (d *VpxDecoder) Process(src <-chan *media.Sample, out chan<- VpxFrame) {
 		for img != nil {
 			out <- VpxFrame{
 				RGBA:       image2RGBA(img),
-				IsKeyframe: isKeyframe,
+				IsKeyframe: (pkt.Data[0]&0x1 == 0),
 			}
 			img = C.vpx_codec_get_frame(d.codec, &iter)
 		}
