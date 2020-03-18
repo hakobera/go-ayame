@@ -1,6 +1,6 @@
 # save-to-webm (go-ayame 版)
 
-go-ayame と Pion を使って、[Ayame Lite](https://ayame-lite.shiguredo.jp/beta) を使って、WebRTC P2P で DataChannel を使用したテキストデータのやりとりをするサンプルコードです。
+go-ayame と Pion、[Ayame Lite](https://ayame-lite.shiguredo.jp/beta) を使って、WebRTC P2P で DataChannel を使用したテキストデータのやりとりをするサンプルコードです。
 
 ## 使い方
 
