@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image"
 	"log"
 
 	"github.com/hakobera/go-ayame/ayame"
@@ -10,6 +11,8 @@ import (
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 	"github.com/veandco/go-sdl2/sdl"
+
+	"golang.org/x/image/draw"
 )
 
 func main() {
@@ -19,8 +22,9 @@ func main() {
 	verbose := flag.Bool("verbose", false, "enable verbose log")
 
 	codec := "VP8"
-	var width int32 = 640
-	var height int32 = 480
+
+	const WindowWidth = 640
+	const WindowHeight = 480
 
 	flag.Parse()
 	log.Printf("args: url=%s, roomID=%s, signalingKey=%s, coded=%s", *signalingURL, *roomID, *signalingKey, codec)
@@ -31,7 +35,7 @@ func main() {
 	}
 	defer sdl.Quit()
 
-	window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, width, height, sdl.WINDOW_SHOWN)
+	window, err := sdl.CreateWindow("go-ayame SDL2 example", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, WindowWidth, WindowHeight, sdl.WINDOW_SHOWN)
 	if err != nil {
 		log.Printf("Failed to create SDL window")
 		panic(err)
@@ -45,7 +49,7 @@ func main() {
 	}
 	defer renderer.Destroy()
 
-	texture, err := renderer.CreateTexture(sdl.PIXELFORMAT_ABGR8888, sdl.TEXTUREACCESS_STREAMING, width, height)
+	texture, err := renderer.CreateTexture(sdl.PIXELFORMAT_ABGR8888, sdl.TEXTUREACCESS_STREAMING, WindowWidth, WindowHeight)
 	if err != nil {
 		log.Printf("Failed to create SDL texture")
 		panic(err)
@@ -55,12 +59,6 @@ func main() {
 	renderer.SetDrawColor(0, 0, 0, sdl.ALPHA_OPAQUE)
 	renderer.Clear()
 
-	videoData := make(chan *media.Sample, 60)
-	defer close(videoData)
-
-	frameData := make(chan VpxFrame)
-	defer close(frameData)
-
 	decoder, err := NewDecoder(codec)
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
@@ -69,6 +67,11 @@ func main() {
 	defer decoder.Close()
 
 	vpxSampleBuilder := decoder.NewSampleBuilder()
+
+	videoData := make(chan *media.Sample, 60)
+	defer close(videoData)
+
+	frameData := make(chan VpxFrame)
 
 	go decoder.Process(videoData, frameData)
 
@@ -105,18 +108,28 @@ func main() {
 
 	go func() {
 		for {
+			var err error = nil
 			select {
 			case f, ok := <-frameData:
 				if !ok {
 					return
 				}
-				err := texture.Update(nil, f.RGBA.Pix, 640*4)
+
+				b := f.Image.Bounds()
+				if b.Dx() == WindowWidth && b.Dy() == WindowHeight {
+					err = texture.Update(nil, f.Image.Pix, WindowWidth*4)
+				} else {
+					dst := image.NewRGBA(image.Rect(0, 0, WindowWidth, WindowHeight))
+					draw.BiLinear.Scale(dst, dst.Bounds(), f.Image, f.Image.Bounds(), draw.Over, nil)
+					err = texture.Update(nil, dst.Pix, WindowWidth*4)
+				}
+
 				if err != nil {
 					log.Println("Failed to update SDL Texture", err)
 					continue
 				}
-				window.UpdateSurface()
 
+				window.UpdateSurface()
 				renderer.Clear()
 				renderer.Copy(texture, nil, nil)
 				renderer.Present()

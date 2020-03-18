@@ -75,13 +75,14 @@ func image2RGBA(img *C.vpx_image_t) *image.RGBA {
 	)
 
 	return &image.RGBA{
-		Pix:  out,
-		Rect: image.Rect(0, 0, int(img.d_w), int(img.d_w)),
+		Pix:    out,
+		Stride: int(img.d_w) * 4,
+		Rect:   image.Rect(0, 0, int(img.d_w), int(img.d_h)),
 	}
 }
 
 type VpxFrame struct {
-	*image.RGBA
+	Image      *image.RGBA
 	IsKeyframe bool
 }
 
@@ -139,7 +140,18 @@ func (d *VpxDecoder) Process(src <-chan *media.Sample, out chan<- VpxFrame) {
 		return
 	}
 
+	defer close(out)
+	receiveFirstKeyFrame := false
+
 	for pkt := range src {
+		isKeyframe := (pkt.Data[0]&0x1 == 0)
+		if !isKeyframe && !receiveFirstKeyFrame {
+			continue
+		}
+		if isKeyframe && !receiveFirstKeyFrame {
+			receiveFirstKeyFrame = true
+		}
+
 		err := d.decode(pkt)
 		if err != nil {
 			log.Println("[WARN]", err)
@@ -150,8 +162,8 @@ func (d *VpxDecoder) Process(src <-chan *media.Sample, out chan<- VpxFrame) {
 		img := C.vpx_codec_get_frame(d.codec, &iter)
 		for img != nil {
 			out <- VpxFrame{
-				RGBA:       image2RGBA(img),
-				IsKeyframe: (pkt.Data[0]&0x1 == 0),
+				Image:      image2RGBA(img),
+				IsKeyframe: isKeyframe,
 			}
 			img = C.vpx_codec_get_frame(d.codec, &iter)
 		}

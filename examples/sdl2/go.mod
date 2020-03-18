@@ -9,5 +9,6 @@ require (
 	github.com/pion/rtp v1.3.2
 	github.com/pion/webrtc/v2 v2.2.3
 	github.com/veandco/go-sdl2 v0.4.1
+	golang.org/x/image v0.0.0-20200119044424-58c23975cae1
 	golang.org/x/sys v0.0.0-20191206220618-eeba5f6aabab // indirect
 )
