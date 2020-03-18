@@ -1,6 +1,6 @@
 # save-to-webm (go-ayame 版)
 
-go-ayame と Pion を使って、[Ayame Lite](https://ayame-lite.shiguredo.jp/beta) を使って、WebRTC P2P 経由で受け取った Video と Audio データを WebM 形式の動画ファイルとして保存するサンプルコードです。
+go-ayame と Pion、[Ayame Lite](https://ayame-lite.shiguredo.jp/beta) を使って、WebRTC P2P 経由で受け取った Video と Audio データを WebM 形式の動画ファイルとして保存するサンプルコードです。
 
 このアプリケーションは [pion/example-webrtc-applications](https://github.com/pion/example-webrtc-applications) 中の [save-to-web](https://github.com/pion/example-webrtc-applications/tree/master/save-to-webm) のシグナリングの部分を go-ayame を利用するように変更したものです。
 
