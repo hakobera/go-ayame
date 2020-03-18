@@ -16,11 +16,14 @@ func main() {
 	signalingURL := flag.String("url", "wss://ayame-lite.shiguredo.jp/signaling", "Specify Ayame service address")
 	roomID := flag.String("room-id", "", "specify room ID")
 	signalingKey := flag.String("signaling-key", "", "specify signaling key")
-	codec := flag.String("codec", "VP8", "sepcify coded (VP8 or VP9)")
 	verbose := flag.Bool("verbose", false, "enable verbose log")
 
+	codec := "VP8"
+	var width int32 = 640
+	var height int32 = 480
+
 	flag.Parse()
-	log.Printf("args: url=%s, roomID=%s, signalingKey=%s, coded=%s", *signalingURL, *roomID, *signalingKey, *codec)
+	log.Printf("args: url=%s, roomID=%s, signalingKey=%s, coded=%s", *signalingURL, *roomID, *signalingKey, codec)
 
 	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
 		log.Printf("Failed to initialize SDL")
@@ -28,8 +31,6 @@ func main() {
 	}
 	defer sdl.Quit()
 
-	var width int32 = 640
-	var height int32 = 480
 	window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, width, height, sdl.WINDOW_SHOWN)
 	if err != nil {
 		log.Printf("Failed to create SDL window")
@@ -60,7 +61,7 @@ func main() {
 	frameData := make(chan VpxFrame)
 	defer close(frameData)
 
-	decoder, err := NewDecoder(*codec)
+	decoder, err := NewDecoder(codec)
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
@@ -73,7 +74,7 @@ func main() {
 
 	opts := ayame.DefaultOptions()
 	opts.SignalingKey = *signalingKey
-	opts.Video.Codec = *codec
+	opts.Video.Codec = codec
 	opts.Audio.Enabled = false
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 	defer con.Disconnect()
