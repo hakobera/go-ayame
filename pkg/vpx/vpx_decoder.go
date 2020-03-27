@@ -1,4 +1,4 @@
-package main
+package vpx
 
 // #cgo LDFLAGS: -lvpx
 // #include <stdlib.h>
