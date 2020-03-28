@@ -116,12 +116,13 @@ func main() {
 					return
 				}
 
-				b := f.Image.Bounds()
+				img := f.ToRGBA()
+				b := img.Bounds()
 				if b.Dx() == WindowWidth && b.Dy() == WindowHeight {
-					err = texture.Update(nil, f.Image.Pix, WindowWidth*4)
+					err = texture.Update(nil, img.Pix, WindowWidth*4)
 				} else {
 					dst := image.NewRGBA(image.Rect(0, 0, WindowWidth, WindowHeight))
-					draw.BiLinear.Scale(dst, dst.Bounds(), f.Image, f.Image.Bounds(), draw.Over, nil)
+					draw.BiLinear.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
 					err = texture.Update(nil, dst.Pix, WindowWidth*4)
 				}
 
