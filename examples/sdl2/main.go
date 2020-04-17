@@ -7,6 +7,7 @@ import (
 	"log"
 
 	"github.com/hakobera/go-ayame/ayame"
+	"github.com/hakobera/go-ayame/pkg/vpx"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
@@ -59,7 +60,7 @@ func main() {
 	renderer.SetDrawColor(0, 0, 0, sdl.ALPHA_OPAQUE)
 	renderer.Clear()
 
-	decoder, err := NewDecoder(codec)
+	decoder, err := vpx.NewDecoder(codec)
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
@@ -71,7 +72,7 @@ func main() {
 	videoData := make(chan *media.Sample, 60)
 	defer close(videoData)
 
-	frameData := make(chan VpxFrame)
+	frameData := make(chan vpx.VpxFrame)
 
 	go decoder.Process(videoData, frameData)
 
@@ -115,12 +116,13 @@ func main() {
 					return
 				}
 
-				b := f.Image.Bounds()
+				img := f.ToRGBA()
+				b := img.Bounds()
 				if b.Dx() == WindowWidth && b.Dy() == WindowHeight {
-					err = texture.Update(nil, f.Image.Pix, WindowWidth*4)
+					err = texture.Update(nil, img.Pix, WindowWidth*4)
 				} else {
 					dst := image.NewRGBA(image.Rect(0, 0, WindowWidth, WindowHeight))
-					draw.BiLinear.Scale(dst, dst.Bounds(), f.Image, f.Image.Bounds(), draw.Over, nil)
+					draw.BiLinear.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
 					err = texture.Update(nil, dst.Pix, WindowWidth*4)
 				}
 

@@ -1,4 +1,4 @@
-package main
+package vpx
 
 // #cgo LDFLAGS: -lvpx
 // #include <stdlib.h>
@@ -20,7 +20,7 @@ package main
 // void yuv420_to_rgb(uint32_t width, uint32_t height,
 // 					const uint8_t *y, const uint8_t *u, const uint8_t *v,
 // 					int ystride, int ustride, int vstride,
-// 					uint8_t *out)
+// 					uint8_t *out, int fmt)
 // {
 // 		unsigned long int i, j;
 // 		for (i = 0; i < height; ++i) {
@@ -35,10 +35,17 @@ package main
 //		 		int g = (298 * (t_y - 16) - 100 * (t_u - 128) - 208 * (t_v - 128) + 128) >> 8;
 //		 		int b = (298 * (t_y - 16) + 516 * (t_u - 128) + 128) >> 8;
 //
-//		 		point[0] = r>255? 255 : r<0 ? 0 : r;
-//		 		point[1] = g>255? 255 : g<0 ? 0 : g;
-//		 		point[2] = b>255? 255 : b<0 ? 0 : b;
-//		 		point[3] = ~0;
+//				if (fmt == 0 /* RGBA */) {
+//		 			point[0] = r>255? 255 : r<0 ? 0 : r;
+//		 			point[1] = g>255? 255 : g<0 ? 0 : g;
+//		 			point[2] = b>255? 255 : b<0 ? 0 : b;
+//		 			point[3] = ~0;
+//				} else { /* BGRA */
+//		 			point[0] = b>255? 255 : b<0 ? 0 : b;
+//		 			point[1] = g>255? 255 : g<0 ? 0 : g;
+//		 			point[2] = r>255? 255 : r<0 ? 0 : r;
+//		 			point[3] = ~0;
+//				}
 //		 	}
 //		}
 // }
@@ -59,7 +66,28 @@ import (
 	"github.com/pion/webrtc/v2/pkg/media/samplebuilder"
 )
 
-func image2RGBA(img *C.vpx_image_t) *image.RGBA {
+type ColorFormat int
+
+const (
+	ColorRGBA ColorFormat = iota
+	ColorBGRA
+)
+
+type VpxFrame struct {
+	IsKeyframe bool
+	image      *C.vpx_image_t
+}
+
+func (f *VpxFrame) Width() uint32 {
+	return uint32(f.image.d_w)
+}
+
+func (f *VpxFrame) Height() uint32 {
+	return uint32(f.image.d_h)
+}
+
+func (f *VpxFrame) ToBytes(format ColorFormat) []uint8 {
+	img := f.image
 	out := make([]uint8, img.d_w*img.d_h*4)
 
 	C.yuv420_to_rgb(
@@ -72,18 +100,20 @@ func image2RGBA(img *C.vpx_image_t) *image.RGBA {
 		img.stride[C.VPX_PLANE_U],
 		img.stride[C.VPX_PLANE_V],
 		(*C.uint8_t)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&out)).Data)),
+		(C.int)(format),
 	)
+
+	return out
+}
+
+func (f *VpxFrame) ToRGBA() *image.RGBA {
+	out := f.ToBytes(ColorRGBA)
 
 	return &image.RGBA{
 		Pix:    out,
-		Stride: int(img.d_w) * 4,
-		Rect:   image.Rect(0, 0, int(img.d_w), int(img.d_h)),
+		Stride: int(f.image.d_w) * 4,
+		Rect:   image.Rect(0, 0, int(f.image.d_w), int(f.image.d_h)),
 	}
-}
-
-type VpxFrame struct {
-	Image      *image.RGBA
-	IsKeyframe bool
 }
 
 type VpxDecoder struct {
@@ -162,7 +192,7 @@ func (d *VpxDecoder) Process(src <-chan *media.Sample, out chan<- VpxFrame) {
 		img := C.vpx_codec_get_frame(d.codec, &iter)
 		for img != nil {
 			out <- VpxFrame{
-				Image:      image2RGBA(img),
+				image:      img,
 				IsKeyframe: isKeyframe,
 			}
 			img = C.vpx_codec_get_frame(d.codec, &iter)
