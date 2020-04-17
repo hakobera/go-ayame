@@ -2,7 +2,13 @@
 
 go-ayame と Pion、libvpx、[Ayame Lite](https://ayame-lite.shiguredo.jp/beta) を使って、WebRTC P2P 経由で受け取った Video データを使ってモーション検知をし、検知した場合に DataChannel を利用して送信側にデータを送信するサンプルコードです。
 
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">Raspberry Pi Zero W + WebRTC Native Client momo で配信した動画を、go-ayame を使って受信して、GoCV (OpenCV) でモーション検知して、検知結果を DataChannel で戻して serial 経由で Arduino に指令を出して LED を点灯、消灯している図 <a href="https://t.co/j7T1EQoops">pic.twitter.com/j7T1EQoops</a></p>&mdash; Kazuyuki Honda (@hakobera) <a href="https://twitter.com/hakobera/status/1244279413329416192?ref_src=twsrc%5Etfw">March 29, 2020</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+実際に動いている様子は以下のリンク先の Tweet の動画で確認できます。
+
+> Raspberry Pi Zero W + WebRTC Native Client momo で配信した動画を、go-ayame を使って受信して、GoCV (OpenCV) でモーション検知して、検知結果を DataChannel で戻して serial 経由で Arduino に指令を出して LED を点灯、消灯している図
+
+https://twitter.com/hakobera/status/1244279413329416192
+
+[![image](https://pbs.twimg.com/ext_tw_video_thumb/1244279387446341632/pu/img/_NJsxhk3Q1O1HegR?format=jpg&name=small)](https://twitter.com/hakobera/status/1244279413329416192)
 
 ## 依存ライブラリのインストール
 
