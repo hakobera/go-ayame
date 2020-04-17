@@ -16,10 +16,12 @@ import (
 )
 
 const (
-	frameX      = 640
-	frameY      = 480
+	frameX      = 320
+	frameY      = 240
 	minimumArea = 3000
 )
+
+var dc *webrtc.DataChannel = nil
 
 func main() {
 	signalingURL := flag.String("url", "wss://ayame-lite.shiguredo.jp/signaling", "Specify Ayame service address")
@@ -57,6 +59,13 @@ func main() {
 
 	con.OnConnect(func() {
 		fmt.Println("Connected")
+
+		var err error = nil
+		dc, err = con.AddDataChannel("dataChannel1", nil)
+		if err != nil {
+			log.Printf("AddDataChannel error: %v", err)
+			return
+		}
 	})
 
 	con.OnTrackPacket(func(track *webrtc.Track, packet *rtp.Packet) {
@@ -71,6 +80,12 @@ func main() {
 				}
 				videoData <- sample
 			}
+		}
+	})
+
+	con.OnData(func(c *webrtc.DataChannel, msg *webrtc.DataChannelMessage) {
+		if msg.IsString {
+			fmt.Printf("OnData[%s]: data=%s\n", c.Label(), (msg.Data))
 		}
 	})
 
@@ -99,6 +114,8 @@ func startGoCVMotionDetect(frameData <-chan vpx.VpxFrame) {
 
 	mog2 := gocv.NewBackgroundSubtractorMOG2()
 	defer mog2.Close() //nolint
+
+	prevStatus := "Ready"
 
 L:
 	for {
@@ -146,6 +163,15 @@ L:
 			}
 
 			gocv.PutText(&img, status, image.Pt(10, 30), gocv.FontHersheyPlain, 2.0, statusColor, 2)
+
+			if prevStatus != status {
+				if status == "Motion detected" {
+					dc.SendText("o")
+				} else {
+					dc.SendText("p")
+				}
+			}
+			prevStatus = status
 
 			window.IMShow(img)
 			if window.WaitKey(1) == 27 {
