@@ -32,7 +32,7 @@ func main() {
 	codec := "VP8"
 
 	flag.Parse()
-	log.Printf("args: url=%s, roomID=%s, signalingKey=%s, coded=%s", *signalingURL, *roomID, *signalingKey, codec)
+	log.Printf("args: url=%s, roomID=%s, signalingKey=%s, codec=%s", *signalingURL, *roomID, *signalingKey, codec)
 
 	decoder, err := vpx.NewDecoder(codec)
 	if err != nil {
