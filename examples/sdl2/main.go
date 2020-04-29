@@ -28,7 +28,7 @@ func main() {
 	const WindowHeight = 480
 
 	flag.Parse()
-	log.Printf("args: url=%s, roomID=%s, signalingKey=%s, coded=%s", *signalingURL, *roomID, *signalingKey, codec)
+	log.Printf("args: url=%s, roomID=%s, signalingKey=%s, codec=%s", *signalingURL, *roomID, *signalingKey, codec)
 
 	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
 		log.Printf("Failed to initialize SDL")
