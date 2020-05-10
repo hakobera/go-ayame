@@ -86,6 +86,35 @@ func (f *VpxFrame) Height() uint32 {
 	return uint32(f.image.d_h)
 }
 
+func (f *VpxFrame) Plane(n int) []byte {
+	var p *C.uchar
+
+	switch n {
+	case 0:
+		p = f.image.planes[C.VPX_PLANE_Y]
+	case 1:
+		p = f.image.planes[C.VPX_PLANE_U]
+	case 2:
+		p = f.image.planes[C.VPX_PLANE_V]
+	}
+
+	lenData := f.Width() * f.Height()
+	return (*[1 << 30]byte)(unsafe.Pointer(p))[:lenData:lenData]
+}
+
+func (f *VpxFrame) Stride(n int) int {
+	switch n {
+	case 0:
+		return int(f.image.stride[C.VPX_PLANE_Y])
+	case 1:
+		return int(f.image.stride[C.VPX_PLANE_U])
+	case 2:
+		return int(f.image.stride[C.VPX_PLANE_V])
+	default:
+		return -1
+	}
+}
+
 func (f *VpxFrame) ToBytes(format ColorFormat) []uint8 {
 	img := f.image
 	out := make([]uint8, img.d_w*img.d_h*4)
