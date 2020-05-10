@@ -313,13 +313,19 @@ func (c *Connection) createPeerConnection() error {
 	}
 
 	if c.Options.Audio.Enabled {
-		if _, err = pc.AddTransceiver(webrtc.RTPCodecTypeAudio); err != nil {
+		_, err = pc.AddTransceiver(webrtc.RTPCodecTypeAudio, webrtc.RtpTransceiverInit{
+			Direction: c.Options.Audio.Direction,
+		})
+		if err != nil {
 			return err
 		}
 	}
 
 	if c.Options.Video.Enabled {
-		if _, err = pc.AddTransceiver(webrtc.RTPCodecTypeVideo); err != nil {
+		_, err = pc.AddTransceiver(webrtc.RTPCodecTypeVideo, webrtc.RtpTransceiverInit{
+			Direction: c.Options.Video.Direction,
+		})
+		if err != nil {
 			return err
 		}
 	}

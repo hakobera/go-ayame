@@ -7,33 +7,15 @@ import (
 )
 
 // DefaultOptions は Ayame 接続オプションのデフォルト値を生成して返します。
-// 以下がデフォルトのオプション値です。
-//
-//   Audio: ConnectionAudioOption{
-//   	Direction: "recvonly",
-//   	Enabled:   true,
-//   },
-//   Video: ConnectionVideoOption{
-//   	Direction: "recvonly",
-//   	Enabled:   true,
-//   	Codec:     "VP8",
-//   },
-//   ICEServers: []webrtc.ICEServer{
-//   	webrtc.ICEServer{
-//   		URLs: []string{"stun:stun.l.google.com:19302"},
-//   	},
-//   },
-//   ClientID: getULID(),
-//
 func DefaultOptions() *ConnectionOptions {
 	return &ConnectionOptions{
 		Audio: ConnectionAudioOption{
-			Direction: "recvonly",
+			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 			Enabled:   true,
 			Bitrate:   48000,
 		},
 		Video: ConnectionVideoOption{
-			Direction: "recvonly",
+			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 			Enabled:   true,
 			Codec:     "VP8",
 			Bitrate:   90000,

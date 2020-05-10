@@ -23,7 +23,7 @@ type ConnectionOptions struct {
 // ConnectionVideoOption は Video に関するオプションです。
 type ConnectionVideoOption struct {
 	// 送受信方向。現在、'recvonly' のみサポート
-	Direction string
+	Direction webrtc.RTPTransceiverDirection
 
 	// 有効かどうかのフラグ
 	Enabled bool
@@ -38,7 +38,7 @@ type ConnectionVideoOption struct {
 // ConnectionAudioOption は Audio に関数するオプションです。
 type ConnectionAudioOption struct {
 	// 送受信方向。現在、'recvonly' のみサポート
-	Direction string
+	Direction webrtc.RTPTransceiverDirection
 
 	// 有効かどうかのフラグ
 	Enabled bool
