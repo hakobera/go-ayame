@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"log"
+	"time"
 
 	"github.com/hakobera/go-ayame/ayame"
 	"github.com/hakobera/go-ayame/pkg/vpx"
@@ -149,5 +150,6 @@ func main() {
 				break
 			}
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
