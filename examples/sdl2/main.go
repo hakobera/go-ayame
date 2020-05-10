@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"image"
 	"log"
+	"time"
 
 	"github.com/hakobera/go-ayame/ayame"
 	"github.com/hakobera/go-ayame/pkg/vpx"
@@ -12,8 +12,6 @@ import (
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 	"github.com/veandco/go-sdl2/sdl"
-
-	"golang.org/x/image/draw"
 )
 
 func main() {
@@ -36,21 +34,21 @@ func main() {
 	}
 	defer sdl.Quit()
 
-	window, err := sdl.CreateWindow("go-ayame SDL2 example", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, WindowWidth, WindowHeight, sdl.WINDOW_SHOWN)
+	window, err := sdl.CreateWindow("go-ayame SDL2 example", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, WindowWidth, WindowHeight, sdl.WINDOW_SHOWN|sdl.WINDOW_ALLOW_HIGHDPI)
 	if err != nil {
 		log.Printf("Failed to create SDL window")
 		panic(err)
 	}
 	defer window.Destroy()
 
-	renderer, err := sdl.CreateRenderer(window, -1, 0)
+	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
 	if err != nil {
 		log.Printf("Failed to create SDL renderer")
 		panic(err)
 	}
 	defer renderer.Destroy()
 
-	texture, err := renderer.CreateTexture(sdl.PIXELFORMAT_ABGR8888, sdl.TEXTUREACCESS_STREAMING, WindowWidth, WindowHeight)
+	texture, err := renderer.CreateTexture(sdl.PIXELFORMAT_YV12, sdl.TEXTUREACCESS_STREAMING, WindowWidth, WindowHeight)
 	if err != nil {
 		log.Printf("Failed to create SDL texture")
 		panic(err)
@@ -116,24 +114,17 @@ func main() {
 					return
 				}
 
-				img := f.ToRGBA()
-				b := img.Bounds()
-				if b.Dx() == WindowWidth && b.Dy() == WindowHeight {
-					err = texture.Update(nil, img.Pix, WindowWidth*4)
-				} else {
-					dst := image.NewRGBA(image.Rect(0, 0, WindowWidth, WindowHeight))
-					draw.BiLinear.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
-					err = texture.Update(nil, dst.Pix, WindowWidth*4)
-				}
-
+				err = texture.UpdateYUV(nil, f.Plane(0), f.Stride(0), f.Plane(1), f.Stride(1), f.Plane(2), f.Stride(2))
 				if err != nil {
 					log.Println("Failed to update SDL Texture", err)
 					continue
 				}
 
-				window.UpdateSurface()
+				src := &sdl.Rect{0, 0, int32(f.Width()), int32(f.Height())}
+				dst := &sdl.Rect{0, 0, WindowWidth, WindowHeight}
+
 				renderer.Clear()
-				renderer.Copy(texture, nil, nil)
+				renderer.Copy(texture, src, dst)
 				renderer.Present()
 			}
 		}
@@ -149,5 +140,6 @@ func main() {
 				break
 			}
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
