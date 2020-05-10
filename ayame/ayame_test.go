@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/hakobera/go-ayame/ayame"
+	"github.com/pion/webrtc/v2"
 )
 
 func TestDefaultOptions(t *testing.T) {
 	opts := ayame.DefaultOptions()
 
-	if opts.Audio.Direction != "recvonly" {
+	if opts.Audio.Direction != webrtc.RTPTransceiverDirectionRecvonly {
 		t.Errorf("Audio.Direction should be \"recvonly\"")
 	}
 	if !opts.Audio.Enabled {
@@ -20,7 +21,7 @@ func TestDefaultOptions(t *testing.T) {
 		t.Errorf("Audio.Bitrate should be 480000")
 	}
 
-	if opts.Video.Direction != "recvonly" {
+	if opts.Video.Direction != webrtc.RTPTransceiverDirectionRecvonly {
 		t.Errorf("Video.Direction should be \"recvonly\"")
 	}
 	if !opts.Video.Enabled {
