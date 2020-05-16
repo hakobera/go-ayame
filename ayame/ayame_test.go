@@ -4,33 +4,36 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hakobera/go-ayame/ayame"
 	"github.com/pion/webrtc/v2"
+	"github.com/hakobera/go-ayame/ayame"
 )
 
 func TestDefaultOptions(t *testing.T) {
 	opts := ayame.DefaultOptions()
 
 	if opts.Audio.Direction != webrtc.RTPTransceiverDirectionRecvonly {
-		t.Errorf("Audio.Direction should be \"recvonly\"")
+		t.Errorf("Audio.Direction should be recvonly")
 	}
 	if !opts.Audio.Enabled {
 		t.Errorf("Audio.Enabled should be true")
 	}
-	if opts.Audio.Bitrate != 48000 {
-		t.Errorf("Audio.Bitrate should be 480000")
+	if opts.Audio.Codecs[0].Name != "opus" {
+		t.Errorf("Audio.Codec.Name should be opus")
+	}
+	if opts.Audio.Codecs[0].ClockRate != 48000 {
+		t.Errorf("Audio.Codec.ClockRate should be 48000")
 	}
 
 	if opts.Video.Direction != webrtc.RTPTransceiverDirectionRecvonly {
-		t.Errorf("Video.Direction should be \"recvonly\"")
+		t.Errorf("Video.Direction should be recvonly")
 	}
 	if !opts.Video.Enabled {
 		t.Errorf("Video.Enabled should be true")
 	}
-	if opts.Video.Codec != "VP8" {
+	if opts.Video.Codecs[0].Name != "VP8" {
 		t.Errorf("Video.Codec should be \"VP8\"")
 	}
-	if opts.Video.Bitrate != 90000 {
+	if opts.Video.Codecs[0].ClockRate != 90000 {
 		t.Errorf("Video.Bitrate should be 90000")
 	}
 

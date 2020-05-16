@@ -30,9 +30,9 @@ func main() {
 
 	opts := ayame.DefaultOptions()
 	opts.SignalingKey = *signalingKey
-	opts.Video.Codec = "VP8"
-	opts.Video.Bitrate = 128000
+
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
+	defer con.Disconnect()
 
 	con.OnConnect(func() {
 		fmt.Println("Connected")

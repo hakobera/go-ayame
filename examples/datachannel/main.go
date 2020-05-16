@@ -25,7 +25,9 @@ func main() {
 
 	opts := ayame.DefaultOptions()
 	opts.SignalingKey = *signalingKey
+	
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
+	defer con.Disconnect()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -277,37 +277,22 @@ func (c *Connection) sendSdp(sessionDescription *webrtc.SessionDescription) {
 }
 
 func (c *Connection) createPeerConnection() error {
-	// createPeerConnection() は以下のソース内の createWebRTCConn() を参考に記述しました。
-	// 引用した部分については、コメントもそのまま持ってきています。
-	// https://github.com/pion/example-webrtc-applications/blob/master/save-to-webm/main.go
-
-	// Create a MediaEngine object to configure the supported codec
 	m := webrtc.MediaEngine{}
 
-	// Setup the codecs you want to use.
 	if c.Options.Audio.Enabled {
-		m.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, c.Options.Audio.Bitrate))
-	}
-
-	if c.Options.Video.Enabled {
-		switch c.Options.Video.Codec {
-		case "VP9":
-			m.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, c.Options.Video.Bitrate))
-		case "H264":
-			m.RegisterCodec(webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, c.Options.Video.Bitrate))
-		case "ALL":
-			m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, c.Options.Video.Bitrate))
-			m.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, c.Options.Video.Bitrate))
-			m.RegisterCodec(webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, c.Options.Video.Bitrate))
-		default:
-			m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, c.Options.Video.Bitrate))
+		for _, codec := range c.Options.Audio.Codecs {
+			m.RegisterCodec(codec)
 		}
 	}
 
-	// Create the API object with the MediaEngine
+	if c.Options.Video.Enabled {
+		for _, codec := range c.Options.Video.Codecs {
+			m.RegisterCodec(codec)
+		}
+	}
+
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(m))
 
-	// Create a new RTCPeerConnection
 	c.trace("RTCConfiguration: %v", c.pcConfig)
 	pc, err := api.NewPeerConnection(c.pcConfig)
 	if err != nil {

@@ -28,11 +28,8 @@ type ConnectionVideoOption struct {
 	// 有効かどうかのフラグ
 	Enabled bool
 
-	// コーデックの設定。'VP8', 'VP9', 'H264' のみサポート
-	Codec string
-
-	// 動画のビットレート（単位は bps）
-	Bitrate uint32
+	// 対応しているコーデックの設定
+	Codecs []*webrtc.RTPCodec
 }
 
 // ConnectionAudioOption は Audio に関数するオプションです。
@@ -43,8 +40,6 @@ type ConnectionAudioOption struct {
 	// 有効かどうかのフラグ
 	Enabled bool
 
-	// 音声のビットレート。（単位は bps)
-	Bitrate uint32
-
-	// 音声のコーデックは Opus で固定
+	// 対応しているコーデックの設定
+	Codecs []*webrtc.RTPCodec
 }
