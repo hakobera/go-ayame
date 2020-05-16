@@ -397,7 +397,7 @@ func (c *Connection) createPeerConnection() error {
 		c.onDataChannel(dc)
 	})
 
-	if c.pc != nil {
+	if c.pc == nil {
 		c.pc = pc
 		c.onOpenHandler(c.authzMetadata)
 	} else {
