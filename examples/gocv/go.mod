@@ -11,5 +11,5 @@ require (
 	github.com/hakobera/go-ayame/pkg/vpx v0.2.0
 	github.com/pion/rtp v1.5.2
 	github.com/pion/webrtc/v2 v2.2.11
-	gocv.io/x/gocv v0.22.0
+	gocv.io/x/gocv v0.23.0
 )

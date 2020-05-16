@@ -1,11 +1,18 @@
-VERSION ?= 0.1.0
+VERSION ?= 0.2.0
 
-.PHONY: test version
+EXAMPLE_DIRS := $(shell find ./examples/* -maxdepth 0 -type d)
 
-all: test
+.PHONY: all test version build $(EXAMPLE_DIRS)
+
+all: test build
 
 test:
 	go test ./...
 
+build: $(EXAMPLE_DIRS)
+
+$(EXAMPLE_DIRS):
+	cd $@ && go mod tidy && go build -o tmp/cmd .
+
 version:
-	@echo $(VERSION)
+	@echo v$(VERSION)
