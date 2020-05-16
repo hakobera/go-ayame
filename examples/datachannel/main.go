@@ -29,19 +29,30 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	con.OnConnect(func() {
-		fmt.Println("Connected")
-		dc, err := con.AddDataChannel("goAyameExample", nil)
+
+	var dc *webrtc.DataChannel
+	con.OnOpen(func(metadata *interface{}) {
+		fmt.Println("Open")
+		var err error
+		dc, err = con.CreateDataChannel("go-ayame-example", nil)
 		if err != nil {
-			log.Printf("AddDataChannel error: %v", err)
+			log.Printf("CreateDataChannel error: %v", err)
 			return
 		}
+		log.Printf("CreateDataChannel: label=%s", dc.Label())
+		dc.OnMessage(onMessage(dc))
+	})
+
+	con.OnConnect(func() {
+		fmt.Println("Connected")
 		go func() {
 			ticker := time.NewTicker(5 * time.Second)
 			for {
 				select {
 				case <-ticker.C:
-					dc.SendText("[push] Hello DataChannel")
+					if dc != nil {
+						dc.SendText("[push] Hello DataChannel")
+					}
 				case <-ctx.Done():
 					return
 				}
@@ -49,10 +60,11 @@ func main() {
 		}()
 	})
 
-	con.OnData(func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage) {
-		if msg.IsString {
-			fmt.Printf("OnData[%s]: data=%s\n", dc.Label(), (msg.Data))
-			dc.SendText("[echo] " + string(msg.Data))
+	con.OnDataChannel(func(c *webrtc.DataChannel) {
+		log.Printf("OnDataChannel: label=%s", c.Label())
+		if dc == nil {
+			dc = c
+			dc.OnMessage(onMessage(dc))
 		}
 	})
 
@@ -80,4 +92,13 @@ func waitInterrupt() {
 		endWaiter.Done()
 	}()
 	endWaiter.Wait()
+}
+
+func onMessage(dc *webrtc.DataChannel) func(webrtc.DataChannelMessage) {
+	return func(msg webrtc.DataChannelMessage) {
+		if msg.IsString {
+			fmt.Printf("OnData[%s]: data=%s\n", dc.Label(), (msg.Data))
+			dc.SendText("[echo] " + string(msg.Data))
+		}
+	}
 }

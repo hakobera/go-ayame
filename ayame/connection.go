@@ -63,7 +63,7 @@ type Connection struct {
 	onDisconnectHandler  func(reason string, err error)
 	onTrackPacketHandler func(track *webrtc.Track, packet *rtp.Packet)
 	onByeHandler         func()
-	onDataHandler        func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage)
+	onDataChannelHandler func(dc *webrtc.DataChannel)
 
 	callbackMu sync.Mutex
 }
@@ -102,11 +102,11 @@ func (c *Connection) Disconnect() {
 	c.onDisconnectHandler = func(reason string, err error) {}
 	c.onTrackPacketHandler = func(track *webrtc.Track, packet *rtp.Packet) {}
 	c.onByeHandler = func() {}
-	c.onDataHandler = func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage) {}
+	c.onDataChannelHandler = func(dc *webrtc.DataChannel) {}
 }
 
-// AddDataChannel は指定した label と options から新しい DataChannel 作成して、追加します。
-func (c *Connection) AddDataChannel(label string, options *webrtc.DataChannelInit) (*webrtc.DataChannel, error) {
+// CreateDataChannel は指定した label と options から新しい DataChannel 作成して、追加します。
+func (c *Connection) CreateDataChannel(label string, options *webrtc.DataChannelInit) (*webrtc.DataChannel, error) {
 	if c.pc == nil {
 		return nil, fmt.Errorf("PeerConnection Does Not Ready")
 	}
@@ -117,29 +117,31 @@ func (c *Connection) AddDataChannel(label string, options *webrtc.DataChannelIni
 		return nil, fmt.Errorf("DataChannel Already Exists. label=%s", label)
 	}
 
-	dc, err := c.pc.CreateDataChannel(label, options)
-	if err != nil {
-		return nil, err
+	if c.isExistClient {
+		dc, err := c.pc.CreateDataChannel(label, options)
+		if err != nil {
+			return nil, err
+		}
+
+		dc.OnOpen(func() {
+			c.trace("datachannel OnOpen")
+		})
+		dc.OnClose(func() {
+			c.trace("datachannel OnClose")
+			delete(c.dataChannels, label)
+		})
+		dc.OnError(func(err error) {
+			c.trace("datachannel OnError: %v", err)
+			delete(c.dataChannels, label)
+		})
+		dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+			c.trace("datachannel OnMessage")
+		})
+
+		c.dataChannels[label] = dc
+		return dc, nil
 	}
-
-	dc.OnOpen(func() {
-		c.trace("datachannel OnOpen")
-	})
-	dc.OnClose(func() {
-		c.trace("datachannel OnClose")
-		delete(c.dataChannels, label)
-	})
-	dc.OnError(func(err error) {
-		c.trace("datachannel OnError: %v", err)
-		delete(c.dataChannels, label)
-	})
-	dc.OnMessage(func(msg webrtc.DataChannelMessage) {
-		c.trace("datachannel OnMessage")
-		c.onDataHandler(dc, &msg)
-	})
-
-	c.dataChannels[label] = dc
-	return dc, nil
+	return nil, fmt.Errorf("client does not exist")
 }
 
 // OnOpen は open イベント発生時のコールバック関数を設定します。
@@ -177,11 +179,11 @@ func (c *Connection) OnBye(f func()) {
 	c.onByeHandler = f
 }
 
-// OnData は data イベント発生時のコールバック関数を設定します。
-func (c *Connection) OnData(f func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage)) {
+// OnDataChannel は datachannel イベント発生時のコールバック関数を設定します。
+func (c *Connection) OnDataChannel(f func(dc *webrtc.DataChannel)) {
 	c.callbackMu.Lock()
 	defer c.callbackMu.Unlock()
-	c.onDataHandler = f
+	c.onDataChannelHandler = f
 }
 
 func (c *Connection) trace(format string, v ...interface{}) {
@@ -397,7 +399,7 @@ func (c *Connection) createPeerConnection() error {
 		c.onDataChannel(dc)
 	})
 
-	if c.pc != nil {
+	if c.pc == nil {
 		c.pc = pc
 		c.onOpenHandler(c.authzMetadata)
 	} else {
@@ -509,10 +511,13 @@ func (c *Connection) onDataChannel(dc *webrtc.DataChannel) {
 	})
 	dc.OnMessage(func(msg webrtc.DataChannelMessage) {
 		c.trace("datachannel OnMessage")
-		c.onDataHandler(dc, &msg)
 	})
 
-	c.dataChannels[label] = dc
+	if _, ok := c.dataChannels[label]; !ok {
+		c.dataChannels[label] = dc
+	}
+
+	c.onDataChannelHandler(dc)
 }
 
 func (c *Connection) closeDataChannel(dc *webrtc.DataChannel) {
