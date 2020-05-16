@@ -66,7 +66,7 @@ func NewConnection(signalingURL string, roomID string, options *ConnectionOption
 		onDisconnectHandler:  func(reason string, err error) {},
 		onTrackPacketHandler: func(track *webrtc.Track, packet *rtp.Packet) {},
 		onByeHandler:         func() {},
-		onDataHandler:        func(dc *webrtc.DataChannel, msg *webrtc.DataChannelMessage) {},
+		onDataChannelHandler: func(dc *webrtc.DataChannel) {},
 	}
 
 	return c

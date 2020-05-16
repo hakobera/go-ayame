@@ -61,11 +61,12 @@ func main() {
 		fmt.Println("Connected")
 
 		var err error = nil
-		dc, err = con.AddDataChannel("dataChannel1", nil)
+		dc, err = con.CreateDataChannel("dataChannel1", nil)
 		if err != nil {
-			log.Printf("AddDataChannel error: %v", err)
+			log.Printf("CreateDataChannel error: %v", err)
 			return
 		}
+		dc.OnMessage(onMessage(dc))
 	})
 
 	con.OnTrackPacket(func(track *webrtc.Track, packet *rtp.Packet) {
@@ -83,9 +84,10 @@ func main() {
 		}
 	})
 
-	con.OnData(func(c *webrtc.DataChannel, msg *webrtc.DataChannelMessage) {
-		if msg.IsString {
-			fmt.Printf("OnData[%s]: data=%s\n", c.Label(), (msg.Data))
+	con.OnDataChannel(func(c *webrtc.DataChannel) {
+		if dc == nil {
+			dc = c
+			dc.OnMessage(onMessage(dc))
 		}
 	})
 
@@ -177,6 +179,14 @@ L:
 			if window.WaitKey(1) == 27 {
 				break L
 			}
+		}
+	}
+}
+
+func onMessage(dc *webrtc.DataChannel) func(webrtc.DataChannelMessage) {
+	return func(msg webrtc.DataChannelMessage) {
+		if msg.IsString {
+			fmt.Printf("OnData[%s]: data=%s\n", dc.Label(), (msg.Data))
 		}
 	}
 }
