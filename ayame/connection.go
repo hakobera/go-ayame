@@ -633,7 +633,6 @@ func (c *Connection) handleMessage(rawMessage []byte) error {
 		c.sendPongMessage()
 	case "bye":
 		c.onByeHandler()
-		c.Disconnect()
 	case "accept":
 		acceptMsg := acceptMessage{}
 		if err := unmarshalMessage(c, rawMessage, &acceptMsg); err != nil {
