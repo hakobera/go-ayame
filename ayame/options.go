@@ -18,6 +18,9 @@ type ConnectionOptions struct {
 
 	// 認証が必要なルームへの接続時に必要なシグナリングキー
 	SignalingKey string
+
+	// TrickleICE を利用するかどうかのフラグ
+	UseTrickeICE bool
 }
 
 // ConnectionVideoOption は Video に関するオプションです。

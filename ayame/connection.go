@@ -278,20 +278,21 @@ func (c *Connection) sendSdp(sessionDescription *webrtc.SessionDescription) {
 
 func (c *Connection) createPeerConnection() error {
 	m := webrtc.MediaEngine{}
-
 	if c.Options.Audio.Enabled {
 		for _, codec := range c.Options.Audio.Codecs {
 			m.RegisterCodec(codec)
 		}
 	}
-
 	if c.Options.Video.Enabled {
 		for _, codec := range c.Options.Video.Codecs {
 			m.RegisterCodec(codec)
 		}
 	}
 
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(m))
+	s := webrtc.SettingEngine{}
+	s.SetTrickle(c.Options.UseTrickeICE)
+
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(m), webrtc.WithSettingEngine(s))
 
 	c.trace("RTCConfiguration: %v", c.pcConfig)
 	pc, err := api.NewPeerConnection(c.pcConfig)

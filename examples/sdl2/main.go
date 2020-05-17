@@ -82,6 +82,9 @@ func main() {
 	con.OnConnect(func() {
 		fmt.Println("Connected")
 	})
+	con.OnBye(func() {
+		fmt.Printf("Disconnected by peer. Press Ctrl+C to exit.\n")
+	})
 
 	con.OnTrackPacket(func(track *webrtc.Track, packet *rtp.Packet) {
 		switch track.Kind() {

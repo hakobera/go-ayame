@@ -26,7 +26,8 @@ func DefaultOptions() *ConnectionOptions {
 		ICEServers: []webrtc.ICEServer{
 			{URLs: []string{"stun:stun.l.google.com:19302"}},
 		},
-		ClientID: getULID(),
+		ClientID:     getULID(),
+		UseTrickeICE: true,
 	}
 }
 
