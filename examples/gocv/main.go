@@ -29,12 +29,14 @@ func main() {
 	signalingKey := flag.String("signaling-key", "", "specify signaling key")
 	verbose := flag.Bool("verbose", false, "enable verbose log")
 
-	codec := "VP8"
-
 	flag.Parse()
-	log.Printf("args: url=%s, roomID=%s, signalingKey=%s, codec=%s", *signalingURL, *roomID, *signalingKey, codec)
+	log.Printf("args: url=%s, roomID=%s, signalingKey=%s", *signalingURL, *roomID, *signalingKey)
 
-	decoder, err := vpx.NewDecoder(codec)
+	opts := ayame.DefaultOptions()
+	opts.SignalingKey = *signalingKey
+	opts.Audio.Enabled = false
+
+	decoder, err := vpx.NewDecoder(opts.Video.Codecs[0].Name)
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
@@ -50,10 +52,6 @@ func main() {
 
 	go decoder.Process(videoData, frameData)
 
-	opts := ayame.DefaultOptions()
-	opts.SignalingKey = *signalingKey
-	opts.Video.Codec = codec
-	opts.Audio.Enabled = false
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 	defer con.Disconnect()
 

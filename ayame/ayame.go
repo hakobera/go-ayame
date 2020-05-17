@@ -12,20 +12,22 @@ func DefaultOptions() *ConnectionOptions {
 		Audio: ConnectionAudioOption{
 			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 			Enabled:   true,
-			Bitrate:   48000,
+			Codecs: []*webrtc.RTPCodec{
+				webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000),
+			},
 		},
 		Video: ConnectionVideoOption{
 			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 			Enabled:   true,
-			Codec:     "VP8",
-			Bitrate:   90000,
-		},
-		ICEServers: []webrtc.ICEServer{
-			webrtc.ICEServer{
-				URLs: []string{"stun:stun.l.google.com:19302"},
+			Codecs: []*webrtc.RTPCodec{
+				webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, 90000),
 			},
 		},
-		ClientID: getULID(),
+		ICEServers: []webrtc.ICEServer{
+			{URLs: []string{"stun:stun.l.google.com:19302"}},
+		},
+		ClientID:     getULID(),
+		UseTrickeICE: true,
 	}
 }
 

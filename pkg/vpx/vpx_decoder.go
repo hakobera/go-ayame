@@ -57,6 +57,7 @@ import (
 	"image"
 	"log"
 	"reflect"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -156,7 +157,9 @@ type VpxDecoder struct {
 
 func NewDecoder(format string) (*VpxDecoder, error) {
 	iface := (*C.vpx_codec_iface_t)(nil)
-	switch format {
+	f := strings.ToUpper(format)
+
+	switch f {
 	case "VP8":
 		iface = C.ifaceVP8()
 	case "VP9":
@@ -169,7 +172,7 @@ func NewDecoder(format string) (*VpxDecoder, error) {
 	d := &VpxDecoder{
 		codec:  ctx,
 		iface:  iface,
-		format: format,
+		format: f,
 
 		closed: false,
 	}
