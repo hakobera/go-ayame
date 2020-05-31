@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/hakobera/go-ayame/ayame"
-	"github.com/hakobera/go-ayame/pkg/vpx"
+	"github.com/hakobera/go-ayame/pkg/decoder"
+	"github.com/hakobera/go-ayame/pkg/decoder/vpx"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
-	"github.com/pion/webrtc/v2/pkg/media"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -60,21 +60,20 @@ func main() {
 	opts.SignalingKey = *signalingKey
 	opts.Audio.Enabled = false
 
-	decoder, err := vpx.NewDecoder(opts.Video.Codecs[0].Name)
+	d, err := vpx.NewVP8Decoder()
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
 	}
-	defer decoder.Close()
+	defer d.Close()
+	videoFrameBuilder := d.NewFrameBuilder()
 
-	vpxSampleBuilder := decoder.NewSampleBuilder()
-
-	videoData := make(chan *media.Sample, 60)
+	videoData := make(chan *decoder.Frame, 60)
 	defer close(videoData)
 
-	frameData := make(chan vpx.VpxFrame)
+	imgData := make(chan vpx.DecodedImage)
 
-	go decoder.Process(videoData, frameData)
+	go d.Process(videoData, imgData)
 
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 	defer con.Disconnect()
@@ -89,14 +88,14 @@ func main() {
 	con.OnTrackPacket(func(track *webrtc.Track, packet *rtp.Packet) {
 		switch track.Kind() {
 		case webrtc.RTPCodecTypeVideo:
-			vpxSampleBuilder.Push(packet)
+			videoFrameBuilder.Push(packet)
 
 			for {
-				sample := vpxSampleBuilder.Pop()
-				if sample == nil {
+				frame := videoFrameBuilder.Pop()
+				if frame == nil {
 					return
 				}
-				videoData <- sample
+				videoData <- frame
 			}
 		}
 	})
@@ -110,18 +109,18 @@ func main() {
 		for {
 			var err error = nil
 			select {
-			case f, ok := <-frameData:
+			case img, ok := <-imgData:
 				if !ok {
 					return
 				}
 
-				err = texture.UpdateYUV(nil, f.Plane(0), f.Stride(0), f.Plane(1), f.Stride(1), f.Plane(2), f.Stride(2))
+				err = texture.UpdateYUV(nil, img.Plane(0), img.Stride(0), img.Plane(1), img.Stride(1), img.Plane(2), img.Stride(2))
 				if err != nil {
 					log.Println("Failed to update SDL Texture", err)
 					continue
 				}
 
-				src := &sdl.Rect{0, 0, int32(f.Width()), int32(f.Height())}
+				src := &sdl.Rect{0, 0, int32(img.Width()), int32(img.Height())}
 				dst := &sdl.Rect{0, 0, WindowWidth, WindowHeight}
 
 				renderer.Clear()
