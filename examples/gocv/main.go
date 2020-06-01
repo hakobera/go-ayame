@@ -36,7 +36,10 @@ func main() {
 	opts.SignalingKey = *signalingKey
 	opts.Audio.Enabled = false
 
-	d, err := vpx.NewVP8Decoder()
+	var d decoder.Decoder
+	var err error
+
+	d, err = vpx.NewVP8Decoder()
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
@@ -48,7 +51,7 @@ func main() {
 	videoData := make(chan *decoder.Frame, 60)
 	defer close(videoData)
 
-	imgData := make(chan vpx.DecodedImage)
+	imgData := make(chan decoder.DecodedImage)
 
 	go d.Process(videoData, imgData)
 
@@ -99,7 +102,7 @@ func main() {
 
 // This was taken from the GoCV examples, the only change is we are taking a buffer from WebRTC instead of webcam
 // https://github.com/hybridgroup/gocv/blob/master/cmd/motion-detect/main.go
-func startGoCVMotionDetect(imgData <-chan vpx.DecodedImage) {
+func startGoCVMotionDetect(imgData <-chan decoder.DecodedImage) {
 	window := gocv.NewWindow("Motion Window")
 	defer window.Close() //nolint
 

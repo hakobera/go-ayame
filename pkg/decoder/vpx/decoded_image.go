@@ -13,8 +13,12 @@ import (
 )
 
 type DecodedImage struct {
-	IsKeyframe bool
+	isKeyFrame bool
 	image      *C.vpx_image_t
+}
+
+func (f *DecodedImage) IsKeyFrame() bool {
+	return f.isKeyFrame
 }
 
 func (f *DecodedImage) Width() uint32 {

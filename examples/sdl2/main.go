@@ -60,7 +60,8 @@ func main() {
 	opts.SignalingKey = *signalingKey
 	opts.Audio.Enabled = false
 
-	d, err := vpx.NewVP8Decoder()
+	var d decoder.Decoder
+	d, err = vpx.NewVP8Decoder()
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
@@ -71,7 +72,7 @@ func main() {
 	videoData := make(chan *decoder.Frame, 60)
 	defer close(videoData)
 
-	imgData := make(chan vpx.DecodedImage)
+	imgData := make(chan decoder.DecodedImage)
 
 	go d.Process(videoData, imgData)
 

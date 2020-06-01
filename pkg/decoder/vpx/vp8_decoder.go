@@ -63,7 +63,7 @@ func (d *VP8Decoder) NewFrameBuilder() *decoder.FrameBuilder {
 	return decoder.NewFrameBuilder(10, &codecs.VP8Packet{})
 }
 
-func (d *VP8Decoder) Process(src <-chan *decoder.Frame, out chan<- DecodedImage) {
+func (d *VP8Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.DecodedImage) {
 	if d.closed {
 		return
 	}
@@ -101,9 +101,9 @@ func (d *VP8Decoder) Process(src <-chan *decoder.Frame, out chan<- DecodedImage)
 
 		img = C.vpx_codec_get_frame(d.context, &iter)
 		for img != nil {
-			out <- DecodedImage{
+			out <- &DecodedImage{
 				image:      img,
-				IsKeyframe: isKeyFrame,
+				isKeyFrame: isKeyFrame,
 			}
 			img = C.vpx_codec_get_frame(d.context, &iter)
 		}
