@@ -68,3 +68,28 @@ void yuv420_to_rgb(uint32_t width, uint32_t height,
         }
     }
 }
+
+uint8_t* newFrameBuffer(size_t n)
+{
+	return malloc(sizeof(uint8_t) * n);
+}
+
+static int32_t vpxGetFrameBuffer(void* user_priv, size_t min_size, vpx_codec_frame_buffer_t* fb)
+{
+	return goVpxGetFrameBuffer(user_priv, min_size, fb);
+}
+
+static int32_t vpxReleaseFrameBuffer(void* user_priv, vpx_codec_frame_buffer_t* fb)
+{
+	return goVpxReleaseFrameBuffer(user_priv, fb);
+}
+
+vpx_codec_err_t vpxCodecSetFrameBufferFunction(vpx_codec_ctx_t* ctx, void* user_priv)
+{
+    return vpx_codec_set_frame_buffer_functions(
+        ctx,
+        &vpxGetFrameBuffer,
+        &vpxReleaseFrameBuffer,
+        user_priv
+    );
+}

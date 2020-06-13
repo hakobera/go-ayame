@@ -12,3 +12,18 @@ func handleError(ctx *C.vpx_codec_ctx_t, msg string) error {
 	detail := C.GoString(C.vpx_codec_error_detail(ctx))
 	return fmt.Errorf("%s %s : %s", msg, code, detail)
 }
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func isVP8KeyFrame(frame []byte) bool {
+	return (frame[0]&0x1 == 0)
+}
+
+func isVP9KeyFrame(frame []byte) bool {
+	return (frame[0]&0x1 == 0)
+}

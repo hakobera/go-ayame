@@ -160,7 +160,3 @@ func (d *VP8Decoder) assembleFrame(data [][]byte) ([]byte, error) {
 	}
 	return a, nil
 }
-
-func isVP8KeyFrame(frame []byte) bool {
-	return (frame[0]&0x1 == 0)
-}
