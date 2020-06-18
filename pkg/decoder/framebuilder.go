@@ -1,12 +1,15 @@
 package decoder
 
 import (
+	"fmt"
+
 	"github.com/pion/rtp"
 )
 
 type Frame struct {
-	Data      [][]byte
-	Timestamp uint32
+	Data        [][]byte
+	Timestamp   uint32
+	FirstPacket []byte
 }
 
 // FrameBuilder contains all packets
@@ -34,8 +37,8 @@ type FrameBuilder struct {
 }
 
 // NewFrameBuilder constructs a new FrameBuilder
-func NewFrameBuilder(maxLate uint16, depacketizer rtp.Depacketizer, opts ...Option) *FrameBuilder {
-	s := &FrameBuilder{maxLate: maxLate, depacketizer: depacketizer}
+func NewFrameBuilder(maxLate uint16, depacketizer rtp.Depacketizer, checker rtp.PartitionHeadChecker, opts ...Option) *FrameBuilder {
+	s := &FrameBuilder{maxLate: maxLate, depacketizer: depacketizer, partitionHeadChecker: checker}
 	for _, o := range opts {
 		o(s)
 	}
@@ -53,6 +56,7 @@ func (s *FrameBuilder) Push(p *rtp.Packet) {
 // walk forwards building a sample if everything looks good clear and update buffer+values
 func (s *FrameBuilder) buildFrame(firstBuffer uint16) *Frame {
 	data := [][]byte{}
+	payload := s.buffer[firstBuffer].Payload
 
 	for i := firstBuffer; s.buffer[i] != nil; i++ {
 		if s.buffer[i].Timestamp != s.buffer[firstBuffer].Timestamp {
@@ -62,11 +66,12 @@ func (s *FrameBuilder) buildFrame(firstBuffer uint16) *Frame {
 			for j := firstBuffer; j < i; j++ {
 				s.buffer[j] = nil
 			}
-			return &Frame{Data: data, Timestamp: s.lastPopTimestamp}
+			return &Frame{Data: data, Timestamp: s.lastPopTimestamp, FirstPacket: payload}
 		}
 
 		p, err := s.depacketizer.Unmarshal(s.buffer[i].Payload)
 		if err != nil {
+			fmt.Println(err.Error())
 			return nil
 		}
 
@@ -112,18 +117,10 @@ func (s *FrameBuilder) PopWithTimestamp() *Frame {
 		}
 
 		if !s.isContiguous {
-			if s.partitionHeadChecker == nil {
-				if s.buffer[i-1] == nil {
-					continue // We have never popped a buffer, so we can't assert that the first RTP packet we encounter is valid
-				} else if s.buffer[i-1].Timestamp == curr.Timestamp {
-					continue // We have the same timestamps, so it is data that spans multiple RTP packets
-				}
-			} else {
-				if !s.partitionHeadChecker.IsPartitionHead(curr.Payload) {
-					continue
-				}
-				// We can start using this frame as it is a head of frame partition
+			if !s.partitionHeadChecker.IsPartitionHead(curr.Payload) {
+				continue
 			}
+			// We can start using this frame as it is a head of frame partition
 		}
 
 		// Initial validity checks have passed, walk forward
@@ -134,10 +131,3 @@ func (s *FrameBuilder) PopWithTimestamp() *Frame {
 
 // Option configures FrameBuilder
 type Option func(o *FrameBuilder)
-
-// WithPartitionHeadChecker assigns codec specific PartitionHeadChecker to FrameBuilder
-func WithPartitionHeadChecker(checker rtp.PartitionHeadChecker) Option {
-	return func(o *FrameBuilder) {
-		o.partitionHeadChecker = checker
-	}
-}

@@ -20,6 +20,14 @@ import (
 	"github.com/pion/rtp/codecs"
 )
 
+func isVP9KeyFrame(packet []byte) bool {
+	p := &codecs.VP9Packet{}
+	if _, err := p.Unmarshal(packet); err != nil {
+		return false
+	}
+	return !p.P
+}
+
 type VP9Decoder struct {
 	context *C.vpx_codec_ctx_t
 
@@ -46,7 +54,6 @@ func NewVP9Decoder() (*VP9Decoder, error) {
 func (d *VP9Decoder) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	defer C.free(unsafe.Pointer(d.context))
 
 	d.initialized = false
 
@@ -54,14 +61,18 @@ func (d *VP9Decoder) Close() error {
 		d.frameBufferPool.Clear()
 	}
 
-	if C.vpx_codec_destroy(d.context) != 0 {
-		return errors.New("vpx_codec_destroy failed")
+	if d.context != nil {
+		if C.vpx_codec_destroy(d.context) != 0 {
+			return errors.New("vpx_codec_destroy failed")
+		}
+		C.free(unsafe.Pointer(d.context))
+		d.context = nil
 	}
 	return nil
 }
 
 func (d *VP9Decoder) NewFrameBuilder() *decoder.FrameBuilder {
-	return decoder.NewFrameBuilder(10, &codecs.VP9Packet{})
+	return decoder.NewFrameBuilder(10, &VP9Packet{}, &VP9PartitionHeadChecker{})
 }
 
 func (d *VP9Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.DecodedImage) {
@@ -71,7 +82,8 @@ func (d *VP9Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.Decod
 
 	defer close(out)
 
-	keyFrameRequied := true
+	// TODO: Implement keyframe detection logic correctly
+	keyFrameRequied := false
 
 	for pkt := range src {
 		var err error = nil
@@ -83,7 +95,7 @@ func (d *VP9Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.Decod
 			continue
 		}
 
-		isKeyFrame := isVP9KeyFrame(f)
+		isKeyFrame := isVP9KeyFrame(pkt.FirstPacket)
 		if keyFrameRequied {
 			if !isKeyFrame {
 				continue
@@ -93,7 +105,7 @@ func (d *VP9Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.Decod
 
 		err = d.decode(f)
 		if err != nil {
-			log.Println("[WARN]", err)
+			//log.Println("[WARN]", err)
 			continue
 		}
 
@@ -107,10 +119,6 @@ func (d *VP9Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.Decod
 			if ret != C.VPX_CODEC_OK {
 				break
 			}
-			err = d.returnFrame(img, qp)
-			if err != nil {
-				break
-			}
 
 			out <- &DecodedImage{
 				image:      img,
@@ -121,21 +129,9 @@ func (d *VP9Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.Decod
 	}
 }
 
-func (d *VP9Decoder) returnFrame(img *C.vpx_image_t, qp C.int) error {
-	if img == nil {
-		return fmt.Errorf("no image")
-	}
-	return nil
-}
-
 func (d *VP9Decoder) init() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	err := d.Close()
-	if err != nil {
-		return err
-	}
 
 	config := C.newVpxDecCfg()
 	defer C.free(unsafe.Pointer(config))
@@ -147,7 +143,7 @@ func (d *VP9Decoder) init() error {
 	}
 
 	d.frameBufferPool = &VP9FrameBufferPool{}
-	err = d.frameBufferPool.Init(d.context)
+	err := d.frameBufferPool.Init(d.context)
 	if err != nil {
 		return err
 	}
@@ -156,10 +152,14 @@ func (d *VP9Decoder) init() error {
 }
 
 func (d *VP9Decoder) decode(frame []byte) error {
+	var data *C.uchar = nil
+
 	p := (*reflect.SliceHeader)(unsafe.Pointer(&frame))
-	data := (*C.uchar)(unsafe.Pointer(p.Data))
 	size := (C.uint)(len(frame))
-	ret := C.vpx_codec_decode(d.context, data, size, nil, 0)
+	if size > 0 {
+		data = (*C.uchar)(unsafe.Pointer(p.Data))
+	}
+	ret := C.vpx_codec_decode(d.context, data, size, nil, 1 /*VPX_DL_REALTIME*/)
 	if ret != C.VPX_CODEC_OK {
 		return handleError(d.context, "Failed to decode frame.")
 	}
@@ -183,12 +183,11 @@ type VP9FrameBufferPool struct {
 func (p *VP9FrameBufferPool) Init(ctx *C.vpx_codec_ctx_t) error {
 	p.this = gopointer.Save(p)
 	ret := C.vpxCodecSetFrameBufferFunction(ctx, p.this)
-	p.allocatedBuffers = make([]*VP9FrameBuffer, 0)
-
 	if ret != C.VPX_CODEC_OK {
 		p.Clear()
 		return fmt.Errorf("failed to initialize VP9FrameBufferPool")
 	}
+	p.allocatedBuffers = make([]*VP9FrameBuffer, 0)
 	return nil
 }
 
@@ -199,6 +198,8 @@ func (p *VP9FrameBufferPool) GetFrameBuffer(minSize C.size_t) (*VP9FrameBuffer, 
 	if minSize < 1 {
 		return nil, fmt.Errorf("minSize must be greater than zero")
 	}
+
+	fmt.Println("GetFrameBuffer")
 
 	var availableBuffer *VP9FrameBuffer = nil
 
@@ -305,6 +306,7 @@ func (p *VP9FrameBuffer) Release() {
 
 //export goVpxGetFrameBuffer
 func goVpxGetFrameBuffer(userPriv unsafe.Pointer, minSize C.size_t, fb *C.vpx_codec_frame_buffer_t) C.int32_t {
+	fmt.Println("goVpxGetFrameBuffer")
 	pool := gopointer.Restore(userPriv).(*VP9FrameBufferPool)
 	buf, err := pool.GetFrameBuffer(minSize)
 	if err != nil {
@@ -319,6 +321,7 @@ func goVpxGetFrameBuffer(userPriv unsafe.Pointer, minSize C.size_t, fb *C.vpx_co
 
 //export goVpxReleaseFrameBuffer
 func goVpxReleaseFrameBuffer(userPriv unsafe.Pointer, fb *C.vpx_codec_frame_buffer_t) C.int32_t {
+	fmt.Println("goVpxReleasFrameBuffer")
 	buf := gopointer.Restore(fb.priv).(*VP9FrameBuffer)
 	if buf != nil {
 		buf.Release()

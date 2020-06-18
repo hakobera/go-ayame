@@ -19,11 +19,3 @@ func min(a, b int) int {
 	}
 	return b
 }
-
-func isVP8KeyFrame(frame []byte) bool {
-	return (frame[0]&0x1 == 0)
-}
-
-func isVP9KeyFrame(frame []byte) bool {
-	return (frame[0]&0x1 == 0)
-}

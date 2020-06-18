@@ -15,6 +15,10 @@ import (
 	"github.com/pion/rtp/codecs"
 )
 
+func isVP8KeyFrame(frame []byte) bool {
+	return (frame[0]&0x1 == 0)
+}
+
 type VP8Decoder struct {
 	context *C.vpx_codec_ctx_t
 
@@ -60,7 +64,7 @@ func (d *VP8Decoder) Close() error {
 }
 
 func (d *VP8Decoder) NewFrameBuilder() *decoder.FrameBuilder {
-	return decoder.NewFrameBuilder(10, &codecs.VP8Packet{})
+	return decoder.NewFrameBuilder(10, &codecs.VP8Packet{}, &codecs.VP8PartitionHeadChecker{})
 }
 
 func (d *VP8Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.DecodedImage) {
