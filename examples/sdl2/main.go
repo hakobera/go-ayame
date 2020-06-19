@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/hakobera/go-ayame/ayame"
@@ -19,6 +20,7 @@ const WindowHeight = 480
 
 func main() {
 	signalingURL := flag.String("url", "wss://ayame-lite.shiguredo.jp/signaling", "Specify Ayame service address")
+	videoCodec := flag.String("video-codec", "VP8", "Specify video codec type [VP8 | VP9]")
 	roomID := flag.String("room-id", "", "specify room ID")
 	signalingKey := flag.String("signaling-key", "", "specify signaling key")
 	verbose := flag.Bool("verbose", false, "enable verbose log")
@@ -61,7 +63,24 @@ func main() {
 	opts.Audio.Enabled = false
 
 	var d decoder.Decoder
-	d, err = vpx.NewVP8Decoder()
+
+	switch *videoCodec {
+	case "VP8":
+		opts.Video.Codecs = []*webrtc.RTPCodec{
+			webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, 90000),
+		}
+		d, err = vpx.NewVP8Decoder()
+	case "VP9":
+		opts.Video.Codecs = []*webrtc.RTPCodec{
+			webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, 90000),
+		}
+		d, err = vpx.NewVP9Decoder()
+	default:
+		log.Printf("Unsupported video codec: %s", *videoCodec)
+		os.Exit(1)
+		return
+	}
+
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
