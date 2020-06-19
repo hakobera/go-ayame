@@ -134,6 +134,14 @@ type VP9Packet struct {
 	PDiff     []uint8 // Reference index (F=1)
 	TL0PICIDX uint8   // Temporal layer zero index (F=0)
 
+	// Scalability structure headers
+	N_S    uint8
+	Y      bool
+	G      bool
+	N_G    uint8
+	Width  []uint16
+	Height []uint16
+
 	Payload []byte
 }
 
@@ -164,33 +172,33 @@ func (p *VP9Packet) Unmarshal(packet []byte) ([]byte, error) {
 	if p.I {
 		pos, err = p.parsePictureID(packet, pos)
 		if err != nil {
-			return nil, errors.New("failed parsing VP9 picture ID")
+			return nil, err
+			//return nil, errors.New("failed parsing VP9 picture ID")
 		}
 	}
 
 	if p.L {
 		pos, err = p.parseLayerInfo(packet, pos)
 		if err != nil {
-			return nil, errors.New("failed parsing VP9 layer info")
+			return nil, err
+			//return nil, errors.New("failed parsing VP9 layer info")
 		}
 	}
 
 	if p.F && p.P {
 		pos, err = p.parseRefIndices(packet, pos)
 		if err != nil {
-			return nil, errors.New("failed parsing VP9 ref indices")
+			return nil, err
+			//return nil, errors.New("failed parsing VP9 ref indices")
 		}
 	}
 
 	if p.V {
 		pos, err = p.parseSSData(packet, pos)
 		if err != nil {
-			return nil, errors.New("failed parsing VP9 SS data")
+			return nil, err
+			//return nil, errors.New("failed parsing VP9 SS data")
 		}
-	}
-
-	if len(packet) <= pos {
-		return nil, errShortPacket
 	}
 
 	p.Payload = packet[pos:]
@@ -332,26 +340,31 @@ func (p *VP9Packet) parseSSData(packet []byte, pos int) (int, error) {
 		return pos, errShortPacket
 	}
 
-	NS := packet[pos] >> 5
-	Y := packet[pos]&0x10 != 0
-	G := (packet[pos]>>1)&0x7 != 0
+	p.N_S = packet[pos] >> 5
+	p.Y = packet[pos]&0x10 != 0
+	p.G = (packet[pos]>>1)&0x7 != 0
 	pos++
 
-	var NG uint8 = 0
+	NS := p.N_S + 1
+	p.N_G = 0
 
-	if Y {
-		for i := 0; i < int(NS+1); i++ {
-			pos += 2 // width[i]
-			pos += 2 // height[i]
+	if p.Y {
+		p.Width = make([]uint16, NS)
+		p.Height = make([]uint16, NS)
+		for i := 0; i < int(NS); i++ {
+			p.Width[i] = uint16(packet[pos])<<8 | uint16(packet[pos+1])
+			pos += 2
+			p.Height[i] = uint16(packet[pos])<<8 | uint16(packet[pos+1])
+			pos += 2
 		}
 	}
 
-	if G {
-		NG = packet[pos]
+	if p.G {
+		p.N_G = packet[pos]
 		pos++
 	}
 
-	for i := 0; i < int(NG); i++ {
+	for i := 0; i < int(p.N_G); i++ {
 		//T := packet[pos] >> 5
 		//U := packet[pos]&0x10 != 0
 		R := (packet[pos] >> 2) & 0x3
@@ -377,10 +390,10 @@ func (*VP9PartitionHeadChecker) IsPartitionHead(packet []byte) bool {
 	}
 
 	partitionHead := p.B && (!p.L || !p.D)
-	if !p.P {
-		fmt.Printf("I=%s, P=%s, L=%s, F=%s, B=%s, E=%s, V=%s, PictureID=%d\n",
-			p.I, p.P, p.L, p.F, p.B, p.E, p.V, p.PictureID,
-		)
-	}
+	//if !p.P {
+	//	fmt.Printf("I=%s, P=%s, L=%s, F=%s, B=%s, E=%s, V=%s, PictureID=%d\n",
+	//		p.I, p.P, p.L, p.F, p.B, p.E, p.V, p.PictureID,
+	//	)
+	//}
 	return partitionHead
 }
