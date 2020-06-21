@@ -2,7 +2,6 @@ package vpx
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -385,15 +384,7 @@ type VP9PartitionHeadChecker struct{}
 func (*VP9PartitionHeadChecker) IsPartitionHead(packet []byte) bool {
 	p := &codecs.VP9Packet{}
 	if _, err := p.Unmarshal(packet); err != nil {
-		fmt.Println(err.Error())
 		return false
 	}
-
-	partitionHead := p.B && (!p.L || !p.D)
-	//if !p.P {
-	//	fmt.Printf("I=%s, P=%s, L=%s, F=%s, B=%s, E=%s, V=%s, PictureID=%d\n",
-	//		p.I, p.P, p.L, p.F, p.B, p.E, p.V, p.PictureID,
-	//	)
-	//}
-	return partitionHead
+	return p.B && (!p.L || !p.D)
 }

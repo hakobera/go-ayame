@@ -76,11 +76,11 @@ func (d *VP8Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.Decod
 
 	keyFrameRequied := true
 
-	for pkt := range src {
+	for frame := range src {
 		var err error
 		var f []byte
 
-		f, err = d.assembleFrame(pkt.Data)
+		f, err = d.assembleFrame(frame.Packets)
 		if err != nil {
 			log.Println("[WARN]", err)
 			continue
@@ -157,10 +157,11 @@ func (d *VP8Decoder) decode(frame []byte) error {
 	return nil
 }
 
-func (d *VP8Decoder) assembleFrame(data [][]byte) ([]byte, error) {
+func (d *VP8Decoder) assembleFrame(packets []interface{}) ([]byte, error) {
 	var a []byte
-	for _, d := range data {
-		a = append(a, d...)
+	for _, p := range packets {
+		packet := p.(codecs.VP8Packet)
+		a = append(a, packet.Payload...)
 	}
 	return a, nil
 }

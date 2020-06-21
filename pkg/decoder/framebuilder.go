@@ -1,20 +1,22 @@
 package decoder
 
 import (
-	"fmt"
+	"reflect"
 
 	"github.com/pion/rtp"
 )
 
 type Frame struct {
-	Data        [][]byte
-	Timestamp   uint32
-	FirstPacket []byte
+	Packets   []interface{}
+	Timestamp uint32
 }
 
 // FrameBuilder contains all packets
 // maxLate determines how long we should wait until we get a valid Frame
 // The larger the value the less packet loss you will see, but higher latency
+//
+// This is customized version of Pion's sample builder
+// https://github.com/pion/webrtc/blob/master/pkg/media/samplebuilder/samplebuilder.go
 type FrameBuilder struct {
 	maxLate uint16
 	buffer  [65536]*rtp.Packet
@@ -55,8 +57,7 @@ func (s *FrameBuilder) Push(p *rtp.Packet) {
 // We have a valid collection of RTP Packets
 // walk forwards building a sample if everything looks good clear and update buffer+values
 func (s *FrameBuilder) buildFrame(firstBuffer uint16) *Frame {
-	data := [][]byte{}
-	payload := s.buffer[firstBuffer].Payload
+	packets := []interface{}{}
 
 	for i := firstBuffer; s.buffer[i] != nil; i++ {
 		if s.buffer[i].Timestamp != s.buffer[firstBuffer].Timestamp {
@@ -66,16 +67,15 @@ func (s *FrameBuilder) buildFrame(firstBuffer uint16) *Frame {
 			for j := firstBuffer; j < i; j++ {
 				s.buffer[j] = nil
 			}
-			return &Frame{Data: data, Timestamp: s.lastPopTimestamp, FirstPacket: payload}
+			return &Frame{Packets: packets, Timestamp: s.lastPopTimestamp}
 		}
 
-		p, err := s.depacketizer.Unmarshal(s.buffer[i].Payload)
+		_, err := s.depacketizer.Unmarshal(s.buffer[i].Payload)
 		if err != nil {
-			fmt.Println(err.Error())
 			return nil
 		}
 
-		data = append(data, p)
+		packets = append(packets, reflect.Indirect(reflect.ValueOf(s.depacketizer)).Interface())
 	}
 	return nil
 }

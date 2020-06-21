@@ -17,14 +17,10 @@ import (
 
 	"github.com/hakobera/go-ayame/pkg/decoder"
 	gopointer "github.com/mattn/go-pointer"
-	"github.com/pion/rtp/codecs"
 )
 
-func isVP9KeyFrame(packet []byte) bool {
-	p := &codecs.VP9Packet{}
-	if _, err := p.Unmarshal(packet); err != nil {
-		return false
-	}
+func isVP9KeyFrame(packets []interface{}) bool {
+	p := packets[0].(VP9Packet)
 	return !p.P
 }
 
@@ -82,20 +78,19 @@ func (d *VP9Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.Decod
 
 	defer close(out)
 
-	// TODO: Implement keyframe detection logic correctly
 	keyFrameRequied := false
 
-	for pkt := range src {
+	for frame := range src {
 		var err error = nil
 		var f []byte
 
-		f, err = d.assembleFrame(pkt.Data)
+		f, err = d.assembleFrame(frame.Packets)
 		if err != nil {
 			log.Println("[WARN]", err)
 			continue
 		}
 
-		isKeyFrame := isVP9KeyFrame(pkt.FirstPacket)
+		isKeyFrame := isVP9KeyFrame(frame.Packets)
 		if keyFrameRequied {
 			if !isKeyFrame {
 				continue
@@ -105,7 +100,7 @@ func (d *VP9Decoder) Process(src <-chan *decoder.Frame, out chan<- decoder.Decod
 
 		err = d.decode(f)
 		if err != nil {
-			//log.Println("[WARN]", err)
+			log.Println("[WARN]", err)
 			continue
 		}
 
@@ -166,10 +161,11 @@ func (d *VP9Decoder) decode(frame []byte) error {
 	return nil
 }
 
-func (d *VP9Decoder) assembleFrame(data [][]byte) ([]byte, error) {
+func (d *VP9Decoder) assembleFrame(packets []interface{}) ([]byte, error) {
 	var a []byte
-	for _, d := range data {
-		a = append(a, d...)
+	for _, p := range packets {
+		packet := p.(VP9Packet)
+		a = append(a, packet.Payload...)
 	}
 	return a, nil
 }
@@ -192,17 +188,14 @@ func (p *VP9FrameBufferPool) Init(ctx *C.vpx_codec_ctx_t) error {
 }
 
 func (p *VP9FrameBufferPool) GetFrameBuffer(minSize C.size_t) (*VP9FrameBuffer, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	if minSize < 1 {
 		return nil, fmt.Errorf("minSize must be greater than zero")
 	}
 
-	fmt.Println("GetFrameBuffer")
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	var availableBuffer *VP9FrameBuffer = nil
-
 	for _, buf := range p.allocatedBuffers {
 		if buf.HasOneRef() {
 			availableBuffer = buf
@@ -275,6 +268,7 @@ func (p *VP9FrameBuffer) SetSize(size C.size_t) {
 	}
 
 	p.data = C.newFrameBuffer(size)
+	p.size = size
 }
 
 func (p *VP9FrameBuffer) AddRef() int {
@@ -306,12 +300,12 @@ func (p *VP9FrameBuffer) Release() {
 
 //export goVpxGetFrameBuffer
 func goVpxGetFrameBuffer(userPriv unsafe.Pointer, minSize C.size_t, fb *C.vpx_codec_frame_buffer_t) C.int32_t {
-	fmt.Println("goVpxGetFrameBuffer")
 	pool := gopointer.Restore(userPriv).(*VP9FrameBufferPool)
 	buf, err := pool.GetFrameBuffer(minSize)
 	if err != nil {
 		return -1
 	}
+
 	buf.AddRef()
 	fb.data = buf.GetData()
 	fb.size = buf.GetDataSize()
@@ -321,7 +315,6 @@ func goVpxGetFrameBuffer(userPriv unsafe.Pointer, minSize C.size_t, fb *C.vpx_co
 
 //export goVpxReleaseFrameBuffer
 func goVpxReleaseFrameBuffer(userPriv unsafe.Pointer, fb *C.vpx_codec_frame_buffer_t) C.int32_t {
-	fmt.Println("goVpxReleasFrameBuffer")
 	buf := gopointer.Restore(fb.priv).(*VP9FrameBuffer)
 	if buf != nil {
 		buf.Release()
