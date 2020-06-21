@@ -8,10 +8,10 @@ import (
 	"log"
 
 	"github.com/hakobera/go-ayame/ayame"
-	"github.com/hakobera/go-ayame/pkg/vpx"
+	"github.com/hakobera/go-ayame/pkg/decoder"
+	"github.com/hakobera/go-ayame/pkg/decoder/vpx"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
-	"github.com/pion/webrtc/v2/pkg/media"
 	"gocv.io/x/gocv"
 )
 
@@ -36,21 +36,24 @@ func main() {
 	opts.SignalingKey = *signalingKey
 	opts.Audio.Enabled = false
 
-	decoder, err := vpx.NewDecoder(opts.Video.Codecs[0].Name)
+	var d decoder.Decoder
+	var err error
+
+	d, err = vpx.NewVP8Decoder()
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
 	}
-	defer decoder.Close()
+	defer d.Close()
 
-	vpxSampleBuilder := decoder.NewSampleBuilder()
+	videoFrameBuilder := d.NewFrameBuilder()
 
-	videoData := make(chan *media.Sample, 60)
+	videoData := make(chan *decoder.Frame, 60)
 	defer close(videoData)
 
-	frameData := make(chan vpx.VpxFrame)
+	imgData := make(chan decoder.DecodedImage)
 
-	go decoder.Process(videoData, frameData)
+	go d.Process(videoData, imgData)
 
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 	defer con.Disconnect()
@@ -70,14 +73,14 @@ func main() {
 	con.OnTrackPacket(func(track *webrtc.Track, packet *rtp.Packet) {
 		switch track.Kind() {
 		case webrtc.RTPCodecTypeVideo:
-			vpxSampleBuilder.Push(packet)
+			videoFrameBuilder.Push(packet)
 
 			for {
-				sample := vpxSampleBuilder.Pop()
-				if sample == nil {
+				frame := videoFrameBuilder.Pop()
+				if frame == nil {
 					return
 				}
-				videoData <- sample
+				videoData <- frame
 			}
 		}
 	})
@@ -94,12 +97,12 @@ func main() {
 		log.Fatal("failed to connect Ayame", err)
 	}
 
-	startGoCVMotionDetect(frameData)
+	startGoCVMotionDetect(imgData)
 }
 
 // This was taken from the GoCV examples, the only change is we are taking a buffer from WebRTC instead of webcam
 // https://github.com/hybridgroup/gocv/blob/master/cmd/motion-detect/main.go
-func startGoCVMotionDetect(frameData <-chan vpx.VpxFrame) {
+func startGoCVMotionDetect(imgData <-chan decoder.DecodedImage) {
 	window := gocv.NewWindow("Motion Window")
 	defer window.Close() //nolint
 
@@ -120,14 +123,14 @@ func startGoCVMotionDetect(frameData <-chan vpx.VpxFrame) {
 L:
 	for {
 		select {
-		case f, ok := <-frameData:
+		case img, ok := <-imgData:
 			if !ok {
 				break L
 			}
 
-			buf := f.ToBytes(vpx.ColorBGRA)
-			img, _ := gocv.NewMatFromBytes(frameY, frameX, gocv.MatTypeCV8UC4, buf)
-			if img.Empty() {
+			buf := img.ToBytes(decoder.ColorBGRA)
+			mat, _ := gocv.NewMatFromBytes(frameY, frameX, gocv.MatTypeCV8UC4, buf)
+			if mat.Empty() {
 				continue
 			}
 
@@ -135,7 +138,7 @@ L:
 			statusColor := color.RGBA{0, 255, 0, 0}
 
 			// first phase of cleaning up image, obtain foreground only
-			mog2.Apply(img, &imgDelta)
+			mog2.Apply(mat, &imgDelta)
 
 			// remaining cleanup of the image to use for finding contours.
 			// first use threshold
@@ -156,13 +159,13 @@ L:
 
 				status = "Motion detected"
 				statusColor = color.RGBA{255, 0, 0, 0}
-				gocv.DrawContours(&img, contours, i, statusColor, 2)
+				gocv.DrawContours(&mat, contours, i, statusColor, 2)
 
 				rect := gocv.BoundingRect(c)
-				gocv.Rectangle(&img, rect, color.RGBA{0, 0, 255, 0}, 2)
+				gocv.Rectangle(&mat, rect, color.RGBA{0, 0, 255, 0}, 2)
 			}
 
-			gocv.PutText(&img, status, image.Pt(10, 30), gocv.FontHersheyPlain, 2.0, statusColor, 2)
+			gocv.PutText(&mat, status, image.Pt(10, 30), gocv.FontHersheyPlain, 2.0, statusColor, 2)
 
 			if prevStatus != status {
 				if status == "Motion detected" {
@@ -173,7 +176,7 @@ L:
 			}
 			prevStatus = status
 
-			window.IMShow(img)
+			window.IMShow(mat)
 			if window.WaitKey(1) == 27 {
 				break L
 			}

@@ -38,3 +38,19 @@ go run . -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id>
 プログラムが開始されると、SDLのウィンドウが開き、PeerConnection 接続が完了すると、コンソールに `Connected` と表示されます。ブラウザからの送信された動画データは、初回キーフレームを受け取った後にSDLウィンドウ内に表示されます。
 
 プログラムを終了するには、`Ctrl+C` を押します。
+
+### VP9 を利用する
+
+デフォルトでは VP8 形式の動画を受信するようになっていますが、このサンプルは VP9 形式の動画を受信することもできます。その場合、`-video-codec VP9` オプションを追加します。
+
+```console
+go run . -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id> -video-codec VP9
+```
+
+### 詳細ログを出力する
+
+詳細ログを出力する場合は、`-verbose` オプションを追加します。
+
+```console
+go run . -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id> -verbose
+```
