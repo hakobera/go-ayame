@@ -315,6 +315,10 @@ func goVpxGetFrameBuffer(userPriv unsafe.Pointer, minSize C.size_t, fb *C.vpx_co
 
 //export goVpxReleaseFrameBuffer
 func goVpxReleaseFrameBuffer(userPriv unsafe.Pointer, fb *C.vpx_codec_frame_buffer_t) C.int32_t {
+	if fb.priv == nil {
+		return 0
+	}
+
 	buf := gopointer.Restore(fb.priv).(*VP9FrameBuffer)
 	if buf != nil {
 		buf.Release()
