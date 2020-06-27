@@ -4,7 +4,7 @@ go-ayame は [WebRTC Signaling Server Ayame](https://github.com/OpenAyame/ayame)
 
 ## 前提事項
 
-go-ayame を利用するには Go 1.13 以上が必要です。
+go-ayame を利用するには go 1.14 以上が必要です。
 
 ## 使い方
 

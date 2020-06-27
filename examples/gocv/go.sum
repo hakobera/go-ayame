@@ -34,6 +34,8 @@ github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/gorilla/websocket v1.4.1 h1:q7AeDBpnBk8AogcD4DSag/Ukw/KV+YhzLj2bP5HvKCM=
 github.com/gorilla/websocket v1.4.1/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
+github.com/hakobera/go-webrtc-decoder v0.1.0 h1:duL6/AwRpmQnNbsF98O7NjPdZON1M8PAG+q2Ufo7+4g=
+github.com/hakobera/go-webrtc-decoder v0.1.0/go.mod h1:1ylh+NpxtCxbWPNIxYVsysr43i3aayHfqL/AHZ2+WzA=
 github.com/hpcloud/tail v1.0.0 h1:nfCOvKYfkgYP8hkirhJocXT2+zOD8yUNjXaWfTlyFKI=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/json-iterator/go v1.1.9 h1:9yzud/Ht36ygwatGx56VwCZtlI/2AD15T1X2sjSuGns=
@@ -100,8 +102,8 @@ github.com/pion/transport v0.10.0 h1:9M12BSneJm6ggGhJyWpDveFOstJsTiQjkLf4M44rm80
 github.com/pion/transport v0.10.0/go.mod h1:BnHnUipd0rZQyTVB2SBGojFHT9CBt5C5TcsJSQGkvSE=
 github.com/pion/turn/v2 v2.0.3 h1:SJUUIbcPoehlyZgMyIUbBBDhI03sBx32x3JuSIBKBWA=
 github.com/pion/turn/v2 v2.0.3/go.mod h1:kl1hmT3NxcLynpXVnwJgObL8C9NaCyPTeqI2DcCpSZs=
-github.com/pion/webrtc/v2 v2.2.16 h1:d0Eirg3LjX6J1+b1sbbxz7+L1/KOgFZRQ6Zbe+PPiJI=
-github.com/pion/webrtc/v2 v2.2.16/go.mod h1:/ZI6Xm5uU5ENLa5NRGESDAUIwPbOkzMgdUeD7uNFCyM=
+github.com/pion/webrtc/v2 v2.2.17 h1:2nkMUXFHfdOp1zOLmBgrbFrKDgTxDGk/GVcI7PQefp4=
+github.com/pion/webrtc/v2 v2.2.17/go.mod h1:/ZI6Xm5uU5ENLa5NRGESDAUIwPbOkzMgdUeD7uNFCyM=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
