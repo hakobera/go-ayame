@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/hakobera/go-ayame/ayame"
-	"github.com/hakobera/go-ayame/pkg/decoder"
-	"github.com/hakobera/go-ayame/pkg/decoder/vpx"
+	"github.com/hakobera/go-webrtc-decoder/decoder"
+	"github.com/hakobera/go-webrtc-decoder/decoder/vpx"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
 	"github.com/veandco/go-sdl2/sdl"
