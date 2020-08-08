@@ -36,10 +36,7 @@ func main() {
 	opts.SignalingKey = *signalingKey
 	opts.Audio.Enabled = false
 
-	var d decoder.Decoder
-	var err error
-
-	d, err = vpx.NewVP8Decoder()
+	d, err := vpx.NewVP8Decoder()
 	if err != nil {
 		log.Printf("Failed to create VideoDecoder")
 		panic(err)
@@ -48,12 +45,8 @@ func main() {
 
 	videoFrameBuilder := d.NewFrameBuilder()
 
-	videoData := make(chan *decoder.Frame, 60)
-	defer close(videoData)
-
-	imgData := make(chan decoder.DecodedImage)
-
-	go d.Process(videoData, imgData)
+	videoSrcCh := make(chan *decoder.Frame, 60)
+	defer close(videoSrcCh)
 
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 	defer con.Disconnect()
@@ -80,7 +73,7 @@ func main() {
 				if frame == nil {
 					return
 				}
-				videoData <- frame
+				videoSrcCh <- frame
 			}
 		}
 	})
@@ -97,12 +90,12 @@ func main() {
 		log.Fatal("failed to connect Ayame", err)
 	}
 
-	startGoCVMotionDetect(imgData)
+	startGoCVMotionDetect(d.Process(videoSrcCh))
 }
 
 // This was taken from the GoCV examples, the only change is we are taking a buffer from WebRTC instead of webcam
 // https://github.com/hybridgroup/gocv/blob/master/cmd/motion-detect/main.go
-func startGoCVMotionDetect(imgData <-chan decoder.DecodedImage) {
+func startGoCVMotionDetect(resultsCh <-chan decoder.VideoDecodeResult) {
 	window := gocv.NewWindow("Motion Window")
 	defer window.Close() //nolint
 
@@ -121,65 +114,63 @@ func startGoCVMotionDetect(imgData <-chan decoder.DecodedImage) {
 	prevStatus := "Ready"
 
 L:
-	for {
-		select {
-		case img, ok := <-imgData:
-			if !ok {
-				break L
-			}
+	for result := range resultsCh {
+		if result.Err != nil {
+			log.Println("Failed to process video frame:", result.Err)
+			continue
+		}
 
-			buf := img.ToBytes(decoder.ColorBGRA)
-			mat, _ := gocv.NewMatFromBytes(frameY, frameX, gocv.MatTypeCV8UC4, buf)
-			if mat.Empty() {
+		buf := result.Image.ToBytes(decoder.ColorBGRA)
+		mat, _ := gocv.NewMatFromBytes(frameY, frameX, gocv.MatTypeCV8UC4, buf)
+		if mat.Empty() {
+			continue
+		}
+
+		status := "Ready"
+		statusColor := color.RGBA{0, 255, 0, 0}
+
+		// first phase of cleaning up image, obtain foreground only
+		mog2.Apply(mat, &imgDelta)
+
+		// remaining cleanup of the image to use for finding contours.
+		// first use threshold
+		gocv.Threshold(imgDelta, &imgThresh, 25, 255, gocv.ThresholdBinary)
+
+		// then dilate
+		kernel := gocv.GetStructuringElement(gocv.MorphRect, image.Pt(3, 3))
+		defer kernel.Close() //nolint
+		gocv.Dilate(imgThresh, &imgThresh, kernel)
+
+		// now find contours
+		contours := gocv.FindContours(imgThresh, gocv.RetrievalExternal, gocv.ChainApproxSimple)
+		for i, c := range contours {
+			area := gocv.ContourArea(c)
+			if area < minimumArea {
 				continue
 			}
 
-			status := "Ready"
-			statusColor := color.RGBA{0, 255, 0, 0}
+			status = "Motion detected"
+			statusColor = color.RGBA{255, 0, 0, 0}
+			gocv.DrawContours(&mat, contours, i, statusColor, 2)
 
-			// first phase of cleaning up image, obtain foreground only
-			mog2.Apply(mat, &imgDelta)
+			rect := gocv.BoundingRect(c)
+			gocv.Rectangle(&mat, rect, color.RGBA{0, 0, 255, 0}, 2)
+		}
 
-			// remaining cleanup of the image to use for finding contours.
-			// first use threshold
-			gocv.Threshold(imgDelta, &imgThresh, 25, 255, gocv.ThresholdBinary)
+		gocv.PutText(&mat, status, image.Pt(10, 30), gocv.FontHersheyPlain, 2.0, statusColor, 2)
 
-			// then dilate
-			kernel := gocv.GetStructuringElement(gocv.MorphRect, image.Pt(3, 3))
-			defer kernel.Close() //nolint
-			gocv.Dilate(imgThresh, &imgThresh, kernel)
-
-			// now find contours
-			contours := gocv.FindContours(imgThresh, gocv.RetrievalExternal, gocv.ChainApproxSimple)
-			for i, c := range contours {
-				area := gocv.ContourArea(c)
-				if area < minimumArea {
-					continue
-				}
-
-				status = "Motion detected"
-				statusColor = color.RGBA{255, 0, 0, 0}
-				gocv.DrawContours(&mat, contours, i, statusColor, 2)
-
-				rect := gocv.BoundingRect(c)
-				gocv.Rectangle(&mat, rect, color.RGBA{0, 0, 255, 0}, 2)
+		if prevStatus != status && dc != nil {
+			if status == "Motion detected" {
+				dc.SendText("o")
+			} else {
+				dc.SendText("p")
 			}
+		}
+		prevStatus = status
 
-			gocv.PutText(&mat, status, image.Pt(10, 30), gocv.FontHersheyPlain, 2.0, statusColor, 2)
-
-			if prevStatus != status {
-				if status == "Motion detected" {
-					dc.SendText("o")
-				} else {
-					dc.SendText("p")
-				}
-			}
-			prevStatus = status
-
-			window.IMShow(mat)
-			if window.WaitKey(1) == 27 {
-				break L
-			}
+		window.IMShow(mat)
+		if window.WaitKey(1) == 27 {
+			break L
 		}
 	}
 }

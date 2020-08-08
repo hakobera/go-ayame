@@ -62,7 +62,7 @@ func main() {
 	opts.SignalingKey = *signalingKey
 	opts.Audio.Enabled = false
 
-	var d decoder.Decoder
+	var d decoder.VideoDecoder
 
 	switch *videoCodec {
 	case "VP8":
@@ -88,12 +88,8 @@ func main() {
 	defer d.Close()
 	videoFrameBuilder := d.NewFrameBuilder()
 
-	videoData := make(chan *decoder.Frame, 60)
-	defer close(videoData)
-
-	imgData := make(chan decoder.DecodedImage)
-
-	go d.Process(videoData, imgData)
+	videoSrcCh := make(chan *decoder.Frame, 60)
+	defer close(videoSrcCh)
 
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 	defer con.Disconnect()
@@ -115,38 +111,36 @@ func main() {
 				if frame == nil {
 					return
 				}
-				videoData <- frame
+				videoSrcCh <- frame
 			}
 		}
 	})
 
 	err = con.Connect()
 	if err != nil {
-		log.Fatal("failed to connect Ayame", err)
+		log.Fatal("Failed to connect Ayame", err)
 	}
 
 	go func() {
-		for {
-			var err error = nil
-			select {
-			case img, ok := <-imgData:
-				if !ok {
-					return
-				}
-
-				err = texture.UpdateYUV(nil, img.Plane(0), img.Stride(0), img.Plane(1), img.Stride(1), img.Plane(2), img.Stride(2))
-				if err != nil {
-					log.Println("Failed to update SDL Texture", err)
-					continue
-				}
-
-				src := &sdl.Rect{0, 0, int32(img.Width()), int32(img.Height())}
-				dst := &sdl.Rect{0, 0, WindowWidth, WindowHeight}
-
-				renderer.Clear()
-				renderer.Copy(texture, src, dst)
-				renderer.Present()
+		for result := range d.Process(videoSrcCh) {
+			if result.Err != nil {
+				log.Println("Failed to process video frame:", result.Err)
+				continue
 			}
+
+			img := result.Image
+			err = texture.UpdateYUV(nil, img.Plane(0), img.Stride(0), img.Plane(1), img.Stride(1), img.Plane(2), img.Stride(2))
+			if err != nil {
+				log.Println("Failed to update SDL Texture", err)
+				continue
+			}
+
+			src := &sdl.Rect{0, 0, int32(img.Width()), int32(img.Height())}
+			dst := &sdl.Rect{0, 0, WindowWidth, WindowHeight}
+
+			renderer.Clear()
+			renderer.Copy(texture, src, dst)
+			renderer.Present()
 		}
 	}()
 
