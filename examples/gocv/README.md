@@ -1,6 +1,6 @@
 # GoCV
 
-go-ayame と Pion、libvpx、[Ayame Lite](https://ayame-lite.shiguredo.jp/beta) を使って、WebRTC P2P 経由で受け取った Video データを使ってモーション検知をし、検知した場合に DataChannel を利用して送信側にデータを送信するサンプルコードです。
+go-ayame と Pion、libvpx、[Ayame Labo](https://ayame-labo.shiguredo.jp) を使って、WebRTC P2P 経由で受け取った Video データを使ってモーション検知をし、検知した場合に DataChannel を利用して送信側にデータを送信するサンプルコードです。
 
 実際に動いている様子は以下のリンク先の Tweet の動画で確認できます。
 
@@ -75,7 +75,7 @@ void loop() {
 momo を以下のオプション付きで起動します。
  
 ```console
-$ momo --no-audio ayame wss://ayame-lite.shiguredo.jp/signaling <room-id> --serial /dev/<your-arduino-serial-device-name>,9600
+$ momo --no-audio ayame wss://ayame-labo.shiguredo.jp/signaling <room-id> --serial /dev/<your-arduino-serial-device-name>,9600
 ```
 
 ### gocv
@@ -83,5 +83,5 @@ $ momo --no-audio ayame wss://ayame-lite.shiguredo.jp/signaling <room-id> --seri
 momo の起動オプションでしていした RoomID をコマンドラインパラメータとして指定します。
 
 ```console
-go run . -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id>
+go run . -url wss://ayame-labo.shiguredo.jp/signaling -room-id <room-id>
 ```

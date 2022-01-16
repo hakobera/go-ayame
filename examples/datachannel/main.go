@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	signalingURL := flag.String("url", "wss://ayame-lite.shiguredo.jp/signaling", "Specify Ayame service address")
+	signalingURL := flag.String("url", "wss://ayame-labo.shiguredo.jp/signaling", "Specify Ayame service address")
 	roomID := flag.String("room-id", "", "specify room ID")
 	signalingKey := flag.String("signaling-key", "", "specify signaling key")
 	verbose := flag.Bool("verbose", false, "enable verbose log")
@@ -25,7 +25,7 @@ func main() {
 
 	opts := ayame.DefaultOptions()
 	opts.SignalingKey = *signalingKey
-	
+
 	con := ayame.NewConnection(*signalingURL, *roomID, opts, *verbose, false)
 	defer con.Disconnect()
 
