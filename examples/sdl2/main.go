@@ -19,7 +19,7 @@ const WindowWidth = 640
 const WindowHeight = 480
 
 func main() {
-	signalingURL := flag.String("url", "wss://ayame-lite.shiguredo.jp/signaling", "Specify Ayame service address")
+	signalingURL := flag.String("url", "wss://ayame-labo.shiguredo.jp/signaling", "Specify Ayame service address")
 	videoCodec := flag.String("video-codec", "VP8", "Specify video codec type [VP8 | VP9]")
 	roomID := flag.String("room-id", "", "specify room ID")
 	signalingKey := flag.String("signaling-key", "", "specify signaling key")

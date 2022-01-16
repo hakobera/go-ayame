@@ -11,7 +11,7 @@ go-ayame を利用するには go 1.14 以上が必要です。
 ```go
 import "github.com/hakobera/go-ayame/ayame"
 
-signalingURL := "wss://ayame-lite.shiguredo.jp/signaling"
+signalingURL := "wss://ayame-labo.shiguredo.jp/signaling"
 roomID := "your_room_id"
 
 // ayame.Connect の作成

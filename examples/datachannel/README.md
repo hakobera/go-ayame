@@ -1,6 +1,6 @@
 # save-to-webm (go-ayame 版)
 
-go-ayame と Pion、[Ayame Lite](https://ayame-lite.shiguredo.jp/beta) を使って、WebRTC P2P で DataChannel を使用したテキストデータのやりとりをするサンプルコードです。
+go-ayame と Pion、[Ayame Labo](https://ayame-labo.shiguredo.jp) を使って、WebRTC P2P で DataChannel を使用したテキストデータのやりとりをするサンプルコードです。
 
 ## 使い方
 
@@ -13,7 +13,7 @@ Ayame のオンラインサンプル [RTCDataChannel)](https://openayame.github.
 上記で入力した RoomID をコマンドラインパラメータとして指定します。
 
 ```console
-go run main.go -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id>
+go run main.go -url wss://ayame-labo.shiguredo.jp/signaling -room-id <room-id>
 ```
 
 PeerConnection 接続が完了すると、コンソールに `Connected` と表示されます。

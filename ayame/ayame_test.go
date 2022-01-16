@@ -59,7 +59,7 @@ func TestDefaultOptions(t *testing.T) {
 }
 
 func TestNewConnection(t *testing.T) {
-	signalingURL := "wss://ayame-lite.shiguredo.jp/signaling"
+	signalingURL := "wss://ayame-labo.shiguredo.jp/signaling"
 	roomID := "room1"
 	defaultOptions := ayame.DefaultOptions()
 

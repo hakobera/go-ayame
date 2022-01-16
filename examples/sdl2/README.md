@@ -1,6 +1,6 @@
 # SDL2
 
-go-ayame と Pion、libvpx、[Ayame Lite](https://ayame-lite.shiguredo.jp/beta) を使って、WebRTC P2P 経由で受け取った Video データを [SDL2](https://www.libsdl.org/) を使って表示するサンプルコードです。
+go-ayame と Pion、libvpx、[Ayame Labo](https://ayame-labo.shiguredo.jp) を使って、WebRTC P2P 経由で受け取った Video データを [SDL2](https://www.libsdl.org/) を使って表示するサンプルコードです。
 
 ## 使い方
 
@@ -32,7 +32,7 @@ Ayame のオンラインサンプル [送信のみ(sendonly)](https://openayame.
 上記で入力した RoomID をコマンドラインパラメータとして指定します。
 
 ```console
-go run . -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id>
+go run . -url wss://ayame-labo.shiguredo.jp/signaling -room-id <room-id>
 ```
 
 プログラムが開始されると、SDLのウィンドウが開き、PeerConnection 接続が完了すると、コンソールに `Connected` と表示されます。ブラウザからの送信された動画データは、初回キーフレームを受け取った後にSDLウィンドウ内に表示されます。
@@ -44,7 +44,7 @@ go run . -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id>
 デフォルトでは VP8 形式の動画を受信するようになっていますが、このサンプルは VP9 形式の動画を受信することもできます。その場合、`-video-codec VP9` オプションを追加します。
 
 ```console
-go run . -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id> -video-codec VP9
+go run . -url wss://ayame-labo.shiguredo.jp/signaling -room-id <room-id> -video-codec VP9
 ```
 
 ### 詳細ログを出力する
@@ -52,5 +52,5 @@ go run . -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id> -video-
 詳細ログを出力する場合は、`-verbose` オプションを追加します。
 
 ```console
-go run . -url wss://ayame-lite.shiguredo.jp/signaling -room-id <room-id> -verbose
+go run . -url wss://ayame-labo.shiguredo.jp/signaling -room-id <room-id> -verbose
 ```
