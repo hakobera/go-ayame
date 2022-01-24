@@ -3,7 +3,7 @@ package ayame
 
 import (
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 // DefaultOptions は Ayame 接続オプションのデフォルト値を生成して返します。
@@ -12,15 +12,21 @@ func DefaultOptions() *ConnectionOptions {
 		Audio: ConnectionAudioOption{
 			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 			Enabled:   true,
-			Codecs: []*webrtc.RTPCodec{
-				webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000),
+			Codecs: []*webrtc.RTPCodecParameters{
+				{
+					RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: "audio/opus", ClockRate: 48000, Channels: 0, SDPFmtpLine: "", RTCPFeedback: nil},
+					PayloadType:        111,
+				},
 			},
 		},
 		Video: ConnectionVideoOption{
 			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 			Enabled:   true,
-			Codecs: []*webrtc.RTPCodec{
-				webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, 90000),
+			Codecs: []*webrtc.RTPCodecParameters{
+				{
+					RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: "video/VP8", ClockRate: 90000, Channels: 0, SDPFmtpLine: "", RTCPFeedback: nil},
+					PayloadType:        96,
+				},
 			},
 		},
 		ICEServers: []webrtc.ICEServer{
@@ -66,7 +72,7 @@ func NewConnection(signalingURL string, roomID string, options *ConnectionOption
 		onOpenHandler:        func(metadata *interface{}) {},
 		onConnectHandler:     func() {},
 		onDisconnectHandler:  func(reason string, err error) {},
-		onTrackPacketHandler: func(track *webrtc.Track, packet *rtp.Packet) {},
+		onTrackPacketHandler: func(track *webrtc.TrackRemote, packet *rtp.Packet) {},
 		onByeHandler:         func() {},
 		onDataChannelHandler: func(dc *webrtc.DataChannel) {},
 	}

@@ -14,7 +14,7 @@ import (
 
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 const (
@@ -61,7 +61,7 @@ type Connection struct {
 	onOpenHandler        func(metadata *interface{})
 	onConnectHandler     func()
 	onDisconnectHandler  func(reason string, err error)
-	onTrackPacketHandler func(track *webrtc.Track, packet *rtp.Packet)
+	onTrackPacketHandler func(track *webrtc.TrackRemote, packet *rtp.Packet)
 	onByeHandler         func()
 	onDataChannelHandler func(dc *webrtc.DataChannel)
 
@@ -100,7 +100,7 @@ func (c *Connection) Disconnect() {
 	c.onOpenHandler = func(metadata *interface{}) {}
 	c.onConnectHandler = func() {}
 	c.onDisconnectHandler = func(reason string, err error) {}
-	c.onTrackPacketHandler = func(track *webrtc.Track, packet *rtp.Packet) {}
+	c.onTrackPacketHandler = func(track *webrtc.TrackRemote, packet *rtp.Packet) {}
 	c.onByeHandler = func() {}
 	c.onDataChannelHandler = func(dc *webrtc.DataChannel) {}
 }
@@ -166,7 +166,7 @@ func (c *Connection) OnDisconnect(f func(reason string, err error)) {
 }
 
 // OnTrackPacket は RTP Packet 受診時に発生するコールバック関数を設定します。
-func (c *Connection) OnTrackPacket(f func(track *webrtc.Track, packet *rtp.Packet)) {
+func (c *Connection) OnTrackPacket(f func(track *webrtc.TrackRemote, packet *rtp.Packet)) {
 	c.callbackMu.Lock()
 	defer c.callbackMu.Unlock()
 	c.onTrackPacketHandler = f
@@ -280,19 +280,19 @@ func (c *Connection) createPeerConnection() error {
 	m := webrtc.MediaEngine{}
 	if c.Options.Audio.Enabled {
 		for _, codec := range c.Options.Audio.Codecs {
-			m.RegisterCodec(codec)
+			m.RegisterCodec(*codec, webrtc.RTPCodecTypeAudio)
 		}
 	}
 	if c.Options.Video.Enabled {
 		for _, codec := range c.Options.Video.Codecs {
-			m.RegisterCodec(codec)
+			m.RegisterCodec(*codec, webrtc.RTPCodecTypeVideo)
 		}
 	}
 
 	s := webrtc.SettingEngine{}
-	s.SetTrickle(c.Options.UseTrickeICE)
+	// s.SetTrickle(c.Options.UseTrickeICE)
 
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(m), webrtc.WithSettingEngine(s))
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(&m), webrtc.WithSettingEngine(s))
 
 	c.trace("RTCConfiguration: %v", c.pcConfig)
 	pc, err := api.NewPeerConnection(c.pcConfig)
@@ -301,7 +301,7 @@ func (c *Connection) createPeerConnection() error {
 	}
 
 	if c.Options.Audio.Enabled {
-		_, err = pc.AddTransceiver(webrtc.RTPCodecTypeAudio, webrtc.RtpTransceiverInit{
+		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RtpTransceiverInit{
 			Direction: c.Options.Audio.Direction,
 		})
 		if err != nil {
@@ -310,7 +310,7 @@ func (c *Connection) createPeerConnection() error {
 	}
 
 	if c.Options.Video.Enabled {
-		_, err = pc.AddTransceiver(webrtc.RTPCodecTypeVideo, webrtc.RtpTransceiverInit{
+		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RtpTransceiverInit{
 			Direction: c.Options.Video.Direction,
 		})
 		if err != nil {
@@ -320,7 +320,7 @@ func (c *Connection) createPeerConnection() error {
 
 	// Set a Handler for when a new remote track starts, this Handler copies inbound RTP packets,
 	// replaces the SSRC and sends them back
-	pc.OnTrack(func(track *webrtc.Track, receiver *webrtc.RTPReceiver) {
+	pc.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		// Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
 		// This is a temporary fix until we implement incoming RTCP events, then we would push a PLI only when a viewer requests it
 		go func() {
@@ -330,17 +330,18 @@ func (c *Connection) createPeerConnection() error {
 					return
 				}
 
-				errSend := pc.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: track.SSRC()}})
+				errSend := pc.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(track.SSRC())}})
 				if errSend != nil {
 					c.trace("Failed to write RTCP packet: %s", errSend.Error())
 				}
 			}
 		}()
 
-		c.trace("peerConnection.ontrack(): %d, codec: %s", track.PayloadType(), track.Codec().Name)
+		c.trace("peerConnection.ontrack(): %d, codec: %s", track.PayloadType(), track.Codec().MimeType)
 		go func() {
 			for {
-				rtp, readErr := track.ReadRTP()
+				// Interceptorは
+				rtp, _, readErr := track.ReadRTP()
 				if readErr != nil {
 					if readErr == io.EOF {
 						return
