@@ -1,6 +1,6 @@
 package ayame
 
-import "github.com/pion/webrtc/v2"
+import "github.com/pion/webrtc/v3"
 
 // ConnectionOptions は Ayame 接続オプションです。
 type ConnectionOptions struct {
@@ -32,7 +32,7 @@ type ConnectionVideoOption struct {
 	Enabled bool
 
 	// 対応しているコーデックの設定
-	Codecs []*webrtc.RTPCodec
+	Codecs []*webrtc.RTPCodecParameters
 }
 
 // ConnectionAudioOption は Audio に関数するオプションです。
@@ -44,5 +44,5 @@ type ConnectionAudioOption struct {
 	Enabled bool
 
 	// 対応しているコーデックの設定
-	Codecs []*webrtc.RTPCodec
+	Codecs []*webrtc.RTPCodecParameters
 }
