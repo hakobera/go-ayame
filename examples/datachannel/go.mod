@@ -6,5 +6,5 @@ go 1.14
 
 require (
 	github.com/hakobera/go-ayame v0.3.1
-	github.com/pion/webrtc/v2 v2.2.23
+	github.com/pion/webrtc/v3 v3.1.17
 )
