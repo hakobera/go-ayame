@@ -14,6 +14,7 @@ func DefaultOptions() *ConnectionOptions {
 			Enabled:   true,
 			Codecs: []*webrtc.RTPCodecParameters{
 				{
+					// RFC 7587 "a=rtpmap" MUST be 48000, and the number of channels MUST be 2.
 					RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: "audio/opus", ClockRate: 48000, Channels: 2, SDPFmtpLine: "", RTCPFeedback: nil},
 					PayloadType:        111,
 				},
