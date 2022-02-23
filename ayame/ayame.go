@@ -10,8 +10,8 @@ import (
 func DefaultOptions() *ConnectionOptions {
 	return &ConnectionOptions{
 		Audio: ConnectionAudioOption{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
-			Enabled:   true,
+			Direction: webrtc.RTPTransceiverDirectionSendonly,
+			Enabled:   false,
 			Codecs: []*webrtc.RTPCodecParameters{
 				{
 					// RFC 7587 "a=rtpmap" MUST be 48000, and the number of channels MUST be 2.
@@ -21,7 +21,7 @@ func DefaultOptions() *ConnectionOptions {
 			},
 		},
 		Video: ConnectionVideoOption{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			Direction: webrtc.RTPTransceiverDirectionSendonly,
 			Enabled:   true,
 			Codecs: []*webrtc.RTPCodecParameters{
 				{

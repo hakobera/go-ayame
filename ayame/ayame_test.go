@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hakobera/go-ayame/ayame"
+	"github.com/goforbroke/go-ayame/ayame"
 	"github.com/pion/webrtc/v3"
 )
 

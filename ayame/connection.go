@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -15,12 +16,18 @@ import (
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v3/pkg/media"
+	"github.com/pion/webrtc/v3/pkg/media/h264reader"
 )
 
 const (
-	readTimeout  = 90 * time.Second
-	readLimit    = 1048576
-	writeTimeout = 10 * time.Second
+	readTimeout       = 90 * time.Second
+	readLimit         = 1048576
+	writeTimeout      = 10 * time.Second
+	audioFileName     = "output.ogg"
+	videoFileName     = "output.h264"
+	oggPageDuration   = time.Millisecond * 20
+	h264FrameDuration = time.Millisecond * 33
 )
 
 // Connection は PeerConnection 接続を管理します。
@@ -277,47 +284,98 @@ func (c *Connection) sendSdp(sessionDescription *webrtc.SessionDescription) {
 }
 
 func (c *Connection) createPeerConnection() error {
-	m := webrtc.MediaEngine{}
-	if c.Options.Audio.Enabled {
-		for _, codec := range c.Options.Audio.Codecs {
-			m.RegisterCodec(*codec, webrtc.RTPCodecTypeAudio)
-		}
+	// Assert that we have an audio or video file
+	_, err := os.Stat(videoFileName)
+	haveVideoFile := !os.IsNotExist(err)
+
+	_, err = os.Stat(audioFileName)
+	haveAudioFile := !os.IsNotExist(err)
+
+	if !haveAudioFile && !haveVideoFile {
+		panic("Could not find `" + audioFileName + "` or `" + videoFileName + "`")
 	}
-	if c.Options.Video.Enabled {
-		for _, codec := range c.Options.Video.Codecs {
-			m.RegisterCodec(*codec, webrtc.RTPCodecTypeVideo)
-		}
-	}
 
-	s := webrtc.SettingEngine{}
-	// s.SetTrickle(c.Options.UseTrickeICE)
-
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(&m), webrtc.WithSettingEngine(s))
-
-	c.trace("RTCConfiguration: %v", c.pcConfig)
-	pc, err := api.NewPeerConnection(c.pcConfig)
+	// Create a new RTCPeerConnection
+	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{
+		ICEServers: []webrtc.ICEServer{
+			{
+				URLs: []string{"stun:stun.l.google.com:19302"},
+			},
+		},
+	})
 	if err != nil {
-		return err
+		panic(err)
 	}
-
-	if c.Options.Audio.Enabled {
-		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RtpTransceiverInit{
-			Direction: c.Options.Audio.Direction,
-		})
-		if err != nil {
-			return err
+	defer func() {
+		if cErr := pc.Close(); cErr != nil {
+			fmt.Printf("cannot close peerConnection: %v\n", cErr)
 		}
-	}
+	}()
 
-	if c.Options.Video.Enabled {
-		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RtpTransceiverInit{
-			Direction: c.Options.Video.Direction,
-		})
-		if err != nil {
-			return err
+	iceConnectedCtx, iceConnectedCtxCancel := context.WithCancel(context.Background())
+
+	if haveVideoFile {
+		// Create a video track
+		videoTrack, videoTrackErr := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264}, "video", "pion")
+		if videoTrackErr != nil {
+			panic(videoTrackErr)
 		}
-	}
 
+		rtpSender, videoTrackErr := pc.AddTrack(videoTrack)
+		if videoTrackErr != nil {
+			panic(videoTrackErr)
+		}
+
+		// Read incoming RTCP packets
+		// Before these packets are returned they are processed by interceptors. For things
+		// like NACK this needs to be called.
+		go func() {
+			rtcpBuf := make([]byte, 1500)
+			for {
+				if _, _, rtcpErr := rtpSender.Read(rtcpBuf); rtcpErr != nil {
+					return
+				}
+			}
+		}()
+
+		go func() {
+			// Open a H264 file and start reading using our IVFReader
+			file, h264Err := os.Open(videoFileName)
+			if h264Err != nil {
+				panic(h264Err)
+			}
+
+			h264, h264Err := h264reader.NewReader(file)
+			if h264Err != nil {
+				panic(h264Err)
+			}
+
+			// Wait for connection established
+			<-iceConnectedCtx.Done()
+
+			// Send our video file frame at a time. Pace our sending so we send it at the same speed it should be played back as.
+			// This isn't required since the video is timestamped, but we will such much higher loss if we send all at once.
+			//
+			// It is important to use a time.Ticker instead of time.Sleep because
+			// * avoids accumulating skew, just calling time.Sleep didn't compensate for the time spent parsing the data
+			// * works around latency issues with Sleep (see https://github.com/golang/go/issues/44343)
+			ticker := time.NewTicker(h264FrameDuration)
+			for ; true; <-ticker.C {
+				nal, h264Err := h264.NextNAL()
+				if h264Err == io.EOF {
+					fmt.Printf("All video frames parsed and sent")
+					os.Exit(0)
+				}
+				if h264Err != nil {
+					panic(h264Err)
+				}
+
+				if h264Err = videoTrack.WriteSample(media.Sample{Data: nal.Data, Duration: time.Second}); h264Err != nil {
+					panic(h264Err)
+				}
+			}
+		}()
+	}
 	// Set a Handler for when a new remote track starts, this Handler copies inbound RTP packets,
 	// replaces the SSRC and sends them back
 	pc.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
@@ -362,14 +420,16 @@ func (c *Connection) createPeerConnection() error {
 	// Set the Handler for ICE connection state
 	// This will notify you when the peer has connected/disconnected
 	pc.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-		c.trace("ICE connection Status has changed to %s", connectionState.String())
+		c.trace("ICE connection Status has changed to %s \n", connectionState.String())
 		if c.connectionState != connectionState {
 			c.connectionState = connectionState
 			switch c.connectionState {
 			case webrtc.ICEConnectionStateConnected:
+				iceConnectedCtxCancel()
 				c.isOffer = false
 				c.onConnectHandler()
 			case webrtc.ICEConnectionStateDisconnected:
+				c.trace("ICE conection disconnected\n")
 				fallthrough
 			case webrtc.ICEConnectionStateFailed:
 				c.Disconnect()
@@ -400,7 +460,8 @@ func (c *Connection) sendOffer() error {
 		return nil
 	}
 
-	offer, err := c.pc.CreateOffer(nil)
+	offer, err := c.pc.CreateOffer(&webrtc.OfferOptions{ICERestart: true})
+	// offer, err := c.pc.CreateOffer(nil)
 	if err != nil {
 		return err
 	}
@@ -649,6 +710,7 @@ func (c *Connection) handleMessage(rawMessage []byte) error {
 			}
 			c.pcConfig.ICEServers = iceServers
 		}
+		c.trace("--- ICEServers: %v", c.pcConfig.ICEServers)
 		c.trace("isExistClient: %v", acceptMsg.IsExistClient)
 		c.isExistClient = acceptMsg.IsExistClient
 		c.createPeerConnection()
