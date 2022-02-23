@@ -1,2 +1,4 @@
 test.webm
 tmp/
+.DS_Store
+settings.json
