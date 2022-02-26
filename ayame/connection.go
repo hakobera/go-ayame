@@ -296,13 +296,7 @@ func (c *Connection) createPeerConnection() error {
 	}
 
 	// Create a new RTCPeerConnection
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{
-			{
-				URLs: []string{"stun:stun.l.google.com:19302"},
-			},
-		},
-	})
+	pc, err := webrtc.NewPeerConnection(c.pcConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -465,7 +459,7 @@ func (c *Connection) sendOffer() error {
 	if err != nil {
 		return err
 	}
-	c.trace("create offer sdp=%s", offer.SDP)
+	c.trace("create offer sdp=\n%s", offer.SDP)
 	c.pc.SetLocalDescription(offer)
 	if c.pc.LocalDescription() != nil {
 		c.sendSdp(c.pc.LocalDescription())
@@ -485,7 +479,7 @@ func (c *Connection) createAnswer() error {
 		c.onDisconnectHandler("CREATE-ANSWER-ERROR", err)
 		return err
 	}
-	c.trace("create answer sdp=%s", answer.SDP)
+	c.trace("create answer sdp=\n%s", answer.SDP)
 	c.pc.SetLocalDescription(answer)
 	if c.pc.LocalDescription() != nil {
 		c.sendSdp(c.pc.LocalDescription())
@@ -501,7 +495,7 @@ func (c *Connection) setAnswer(sessionDescription webrtc.SessionDescription) err
 	if err != nil {
 		return err
 	}
-	c.trace("set answer sdp=%s", sessionDescription.SDP)
+	c.trace("set answer sdp=\n%s", sessionDescription.SDP)
 	return nil
 }
 
@@ -509,13 +503,15 @@ func (c *Connection) setOffer(sessionDescription webrtc.SessionDescription) erro
 	if c.pc == nil {
 		return nil
 	}
+	c.trace("----- remote sdp=\n%v", sessionDescription)
 	err := c.pc.SetRemoteDescription(sessionDescription)
+	c.trace("-----err: %v\n", err)
 	if err != nil {
 		c.Disconnect()
 		c.onDisconnectHandler("CREATE-OFFER-ERROR", err)
 		return err
 	}
-	c.trace("set offer sdp=%s", sessionDescription.SDP)
+	c.trace("set offer sdp=\n%s", sessionDescription.SDP)
 	err = c.createAnswer()
 	if err != nil {
 		return err
@@ -670,6 +666,8 @@ loop:
 	c.Disconnect()
 	c.onDisconnectHandler("EXIT-RECV", nil)
 	c.trace("EXIT-RECV")
+	fmt.Println("Peer Connection has gone to failed exiting")
+	os.Exit(112)
 }
 
 func (c *Connection) handleMessage(rawMessage []byte) error {
@@ -710,7 +708,6 @@ func (c *Connection) handleMessage(rawMessage []byte) error {
 			}
 			c.pcConfig.ICEServers = iceServers
 		}
-		c.trace("--- ICEServers: %v", c.pcConfig.ICEServers)
 		c.trace("isExistClient: %v", acceptMsg.IsExistClient)
 		c.isExistClient = acceptMsg.IsExistClient
 		c.createPeerConnection()
