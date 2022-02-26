@@ -503,7 +503,8 @@ func (c *Connection) setOffer(sessionDescription webrtc.SessionDescription) erro
 	if c.pc == nil {
 		return nil
 	}
-	c.trace("----- remote sdp=\n%v", sessionDescription)
+	c.trace("----- peer connectionState closed?:%s\n", c.pc.ConnectionState())
+	c.trace("----- remote sdp=\n%s", sessionDescription)
 	err := c.pc.SetRemoteDescription(sessionDescription)
 	c.trace("-----err: %v\n", err)
 	if err != nil {
