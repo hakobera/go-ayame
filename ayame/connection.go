@@ -300,75 +300,78 @@ func (c *Connection) createPeerConnection() error {
 	if err != nil {
 		panic(err)
 	}
-	defer func() {
-		if cErr := pc.Close(); cErr != nil {
-			fmt.Printf("cannot close peerConnection: %v\n", cErr)
-		}
-	}()
+	// defer func() {
+	// 	fmt.Printf("DEBUG: defer callded\n%v\n", pc)
+	// 	if cErr := pc.Close(); cErr != nil {
+	// 		fmt.Printf("cannot close peerConnection: %v\n", cErr)
+	// 	}
+	// }()
 
 	iceConnectedCtx, iceConnectedCtxCancel := context.WithCancel(context.Background())
 
-	if haveVideoFile {
-		// Create a video track
-		videoTrack, videoTrackErr := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264}, "video", "pion")
-		if videoTrackErr != nil {
-			panic(videoTrackErr)
-		}
+	if c.Options.Video.Enabled {
+		if haveVideoFile {
+			// Create a video track
+			videoTrack, videoTrackErr := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264}, "video", "pion")
+			if videoTrackErr != nil {
+				panic(videoTrackErr)
+			}
 
-		rtpSender, videoTrackErr := pc.AddTrack(videoTrack)
-		if videoTrackErr != nil {
-			panic(videoTrackErr)
-		}
+			rtpSender, videoTrackErr := pc.AddTrack(videoTrack)
+			if videoTrackErr != nil {
+				panic(videoTrackErr)
+			}
 
-		// Read incoming RTCP packets
-		// Before these packets are returned they are processed by interceptors. For things
-		// like NACK this needs to be called.
-		go func() {
-			rtcpBuf := make([]byte, 1500)
-			for {
-				if _, _, rtcpErr := rtpSender.Read(rtcpBuf); rtcpErr != nil {
-					return
+			// Read incoming RTCP packets
+			// Before these packets are returned they are processed by interceptors. For things
+			// like NACK this needs to be called.
+			go func() {
+				rtcpBuf := make([]byte, 1500)
+				for {
+					if _, _, rtcpErr := rtpSender.Read(rtcpBuf); rtcpErr != nil {
+						return
+					}
 				}
-			}
-		}()
+			}()
 
-		go func() {
-			// Open a H264 file and start reading using our IVFReader
-			file, h264Err := os.Open(videoFileName)
-			if h264Err != nil {
-				panic(h264Err)
-			}
-
-			h264, h264Err := h264reader.NewReader(file)
-			if h264Err != nil {
-				panic(h264Err)
-			}
-
-			// Wait for connection established
-			<-iceConnectedCtx.Done()
-
-			// Send our video file frame at a time. Pace our sending so we send it at the same speed it should be played back as.
-			// This isn't required since the video is timestamped, but we will such much higher loss if we send all at once.
-			//
-			// It is important to use a time.Ticker instead of time.Sleep because
-			// * avoids accumulating skew, just calling time.Sleep didn't compensate for the time spent parsing the data
-			// * works around latency issues with Sleep (see https://github.com/golang/go/issues/44343)
-			ticker := time.NewTicker(h264FrameDuration)
-			for ; true; <-ticker.C {
-				nal, h264Err := h264.NextNAL()
-				if h264Err == io.EOF {
-					fmt.Printf("All video frames parsed and sent")
-					os.Exit(0)
-				}
+			go func() {
+				// Open a H264 file and start reading using our IVFReader
+				file, h264Err := os.Open(videoFileName)
 				if h264Err != nil {
 					panic(h264Err)
 				}
 
-				if h264Err = videoTrack.WriteSample(media.Sample{Data: nal.Data, Duration: time.Second}); h264Err != nil {
+				h264, h264Err := h264reader.NewReader(file)
+				if h264Err != nil {
 					panic(h264Err)
 				}
-			}
-		}()
+
+				// Wait for connection established
+				<-iceConnectedCtx.Done()
+
+				// Send our video file frame at a time. Pace our sending so we send it at the same speed it should be played back as.
+				// This isn't required since the video is timestamped, but we will such much higher loss if we send all at once.
+				//
+				// It is important to use a time.Ticker instead of time.Sleep because
+				// * avoids accumulating skew, just calling time.Sleep didn't compensate for the time spent parsing the data
+				// * works around latency issues with Sleep (see https://github.com/golang/go/issues/44343)
+				ticker := time.NewTicker(h264FrameDuration)
+				for ; true; <-ticker.C {
+					nal, h264Err := h264.NextNAL()
+					if h264Err == io.EOF {
+						fmt.Printf("All video frames parsed and sent")
+						os.Exit(0)
+					}
+					if h264Err != nil {
+						panic(h264Err)
+					}
+
+					if h264Err = videoTrack.WriteSample(media.Sample{Data: nal.Data, Duration: time.Second}); h264Err != nil {
+						panic(h264Err)
+					}
+				}
+			}()
+		}
 	}
 	// Set a Handler for when a new remote track starts, this Handler copies inbound RTP packets,
 	// replaces the SSRC and sends them back
@@ -446,6 +449,7 @@ func (c *Connection) createPeerConnection() error {
 	} else {
 		c.pc = pc
 	}
+	c.trace("--- DEBUG createPeerConnection(): create PeerConection State: %v %s\n", c.connectionID, c.pc.ConnectionState())
 	return nil
 }
 
@@ -503,16 +507,16 @@ func (c *Connection) setOffer(sessionDescription webrtc.SessionDescription) erro
 	if c.pc == nil {
 		return nil
 	}
-	c.trace("----- peer connectionState closed?:%s\n", c.pc.ConnectionState())
-	c.trace("----- remote sdp=\n%s", sessionDescription)
+	c.trace("----- DEBUG: peer connectionState closed?:%s\n", c.pc.ConnectionState())
+	// c.trace("----- remote sdp=\n%s", sessionDescription)
 	err := c.pc.SetRemoteDescription(sessionDescription)
-	c.trace("-----err: %v\n", err)
+	c.trace("----- DEBUG: err: %v\n", err)
 	if err != nil {
 		c.Disconnect()
 		c.onDisconnectHandler("CREATE-OFFER-ERROR", err)
 		return err
 	}
-	c.trace("set offer sdp=\n%s", sessionDescription.SDP)
+	// c.trace("set offer sdp=\n%s", sessionDescription.SDP)
 	err = c.createAnswer()
 	if err != nil {
 		return err
