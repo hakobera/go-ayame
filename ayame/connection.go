@@ -715,6 +715,7 @@ func (c *Connection) handleMessage(rawMessage []byte) error {
 		if c.isExistClient {
 			return c.sendOffer()
 		}
+		c.trace("--- DEBUG accept: create PeerConection State: %v %s\n", c.connectionID, c.pc.ConnectionState())
 	case "reject":
 		rejectMsg := rejectMessage{}
 		if err := unmarshalMessage(c, rawMessage, &rejectMsg); err != nil {
