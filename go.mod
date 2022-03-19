@@ -1,4 +1,5 @@
 module github.com/goforbroke/go-ayame
+module github.com/hakobera/go-ayame
 
 go 1.14
 
