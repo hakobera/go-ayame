@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/pion/webrtc/v2"
 	"github.com/hakobera/go-ayame/ayame"
+	"github.com/pion/webrtc/v3"
 )
 
 func TestDefaultOptions(t *testing.T) {
@@ -17,8 +17,8 @@ func TestDefaultOptions(t *testing.T) {
 	if !opts.Audio.Enabled {
 		t.Errorf("Audio.Enabled should be true")
 	}
-	if opts.Audio.Codecs[0].Name != "opus" {
-		t.Errorf("Audio.Codec.Name should be opus")
+	if opts.Audio.Codecs[0].MimeType != "audio/opus" {
+		t.Errorf("Audio.Codec.Name should be audio/opus")
 	}
 	if opts.Audio.Codecs[0].ClockRate != 48000 {
 		t.Errorf("Audio.Codec.ClockRate should be 48000")
@@ -30,8 +30,8 @@ func TestDefaultOptions(t *testing.T) {
 	if !opts.Video.Enabled {
 		t.Errorf("Video.Enabled should be true")
 	}
-	if opts.Video.Codecs[0].Name != "VP8" {
-		t.Errorf("Video.Codec should be \"VP8\"")
+	if opts.Video.Codecs[0].MimeType != "video/VP8" {
+		t.Errorf("Video.Codec should be \"video/VP8\"")
 	}
 	if opts.Video.Codecs[0].ClockRate != 90000 {
 		t.Errorf("Video.Bitrate should be 90000")

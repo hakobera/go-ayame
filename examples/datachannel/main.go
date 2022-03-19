@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hakobera/go-ayame/ayame"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 func main() {

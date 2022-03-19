@@ -1,6 +1,6 @@
 package ayame
 
-import "github.com/pion/webrtc/v2"
+import "github.com/pion/webrtc/v3"
 
 type message struct {
 	Type string `json:"type"`
