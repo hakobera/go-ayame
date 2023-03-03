@@ -358,6 +358,17 @@ func (c *Connection) createPeerConnection() error {
 			}
 		}()
 	})
+	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+		if candidate != nil {
+			json := candidate.ToJSON()
+			c.trace("ICE candidate: %v", json)
+			msg := candidateMessage{
+				Type:         "candidate",
+				ICECandidate: &json,
+			}
+			c.sendMsg(msg)
+		}
+	})
 	// Set the Handler for ICE connection state
 	// This will notify you when the peer has connected/disconnected
 	pc.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
