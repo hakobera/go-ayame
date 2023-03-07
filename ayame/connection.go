@@ -346,8 +346,8 @@ func (c *Connection) createPeerConnection() error {
 						return
 					}
 					c.trace("read RTP error %v", readErr)
-					c.Disconnect()
 					c.onDisconnectHandler("READ-RTP-ERROR", err)
+					c.Disconnect()
 					return
 				}
 				c.onTrackPacketHandler(track, rtp)
@@ -357,6 +357,17 @@ func (c *Connection) createPeerConnection() error {
 				}
 			}
 		}()
+	})
+	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+		if candidate != nil {
+			json := candidate.ToJSON()
+			c.trace("ICE candidate: %v", json)
+			msg := candidateMessage{
+				Type:         "candidate",
+				ICECandidate: &json,
+			}
+			c.sendMsg(msg)
+		}
 	})
 	// Set the Handler for ICE connection state
 	// This will notify you when the peer has connected/disconnected
@@ -371,8 +382,8 @@ func (c *Connection) createPeerConnection() error {
 			case webrtc.ICEConnectionStateDisconnected:
 				fallthrough
 			case webrtc.ICEConnectionStateFailed:
-				c.Disconnect()
 				c.onDisconnectHandler("ICE-CONNECTION-STATE-FAILED", nil)
+				c.Disconnect()
 			}
 		}
 	})
@@ -419,8 +430,8 @@ func (c *Connection) createAnswer() error {
 
 	answer, err := c.pc.CreateAnswer(nil)
 	if err != nil {
-		c.Disconnect()
 		c.onDisconnectHandler("CREATE-ANSWER-ERROR", err)
+		c.Disconnect()
 		return err
 	}
 	c.trace("create answer sdp=%s", answer.SDP)
@@ -449,8 +460,8 @@ func (c *Connection) setOffer(sessionDescription webrtc.SessionDescription) erro
 	}
 	err := c.pc.SetRemoteDescription(sessionDescription)
 	if err != nil {
-		c.Disconnect()
 		c.onDisconnectHandler("CREATE-OFFER-ERROR", err)
+		c.Disconnect()
 		return err
 	}
 	c.trace("set offer sdp=%s", sessionDescription.SDP)
@@ -605,8 +616,8 @@ loop:
 	c.trace("CLOSE-MESSAGE-CHANNEL")
 	<-ctx.Done()
 	c.trace("EXITED-MAIN")
-	c.Disconnect()
 	c.onDisconnectHandler("EXIT-RECV", nil)
+	c.Disconnect()
 	c.trace("EXIT-RECV")
 }
 
@@ -664,8 +675,8 @@ func (c *Connection) handleMessage(rawMessage []byte) error {
 		if rejectReason == "" {
 			rejectReason = "REJECTED"
 		}
-		c.Disconnect()
 		c.onDisconnectHandler(rejectReason, nil)
+		c.Disconnect()
 	case "offer":
 		offerMsg := webrtc.SessionDescription{}
 		if err := unmarshalMessage(c, rawMessage, &offerMsg); err != nil {
