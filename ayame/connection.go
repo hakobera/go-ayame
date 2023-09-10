@@ -74,7 +74,10 @@ func (c *Connection) Connect() error {
 		c.trace("connection already exists")
 		return fmt.Errorf("connection alreay exists")
 	}
-	c.signaling()
+	err := c.signaling()
+	if err != nil {
+		return fmt.Errorf("signaling error: %w", err)
+	}
 	return nil
 }
 
